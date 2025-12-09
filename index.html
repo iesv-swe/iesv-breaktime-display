@@ -1,65 +1,130 @@
+<!-- index.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<title>Break Display – IESV</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<link rel="stylesheet" href="css/styles.css">
+  <meta charset="UTF-8">
+  <title>Break Timer – Year 6</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800;900&family=JetBrains+Mono:wght@700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
 </head>
-
 <body>
 
-<!-- CLOCK -->
-<div id="clockCorner">--:--</div>
+  <!-- AMBIENT BACKGROUND -->
+  <div id="ambientBg">
+    <div class="blob blob1"></div>
+    <div class="blob blob2"></div>
+    <div class="blob blob3"></div>
+  </div>
 
-<!-- ICON CARD -->
-<div id="iconCard">
-    <div id="iconArea">🎒</div>
-</div>
+  <!-- MAIN CONTAINER -->
+  <div id="app">
 
-<!-- TEXT CARD -->
-<div id="textCard">
-    <div id="mainMessage">Class Time</div>
-    <div id="subMessage"></div>
-</div>
+    <!-- TOP BAR -->
+    <header id="topBar">
+      <div id="currentTime">
+        <span class="timeLabel">NOW</span>
+        <span id="clock">--:--</span>
+      </div>
+      <div id="dayBadge">
+        <span id="dayName">---</span>
+      </div>
+    </header>
 
-<!-- COMBINED SECTION -->
-<div id="combinedSection">
-    <div id="combinedText">6A next: — • 6B next: —</div>
+    <!-- STATUS CARD -->
+    <main id="statusCard">
+      <div id="statusIcon">
+        <span id="iconEmoji">📚</span>
+        <div id="iconRing"></div>
+      </div>
+      
+      <h1 id="statusTitle">Loading...</h1>
+      <p id="statusSubtitle"></p>
 
-    <div class="barRow">
-        <div class="barLabel">6A</div>
-        <div class="barOuter"><div class="barFill barFillA"></div></div>
+      <!-- COUNTDOWN DISPLAY -->
+      <div id="countdown">
+        <div class="countUnit">
+          <span id="countMin">--</span>
+          <span class="countLabel">MIN</span>
+        </div>
+        <div class="countSep">:</div>
+        <div class="countUnit">
+          <span id="countSec">--</span>
+          <span class="countLabel">SEC</span>
+        </div>
+      </div>
+
+      <!-- PROGRESS RING -->
+      <div id="progressContainer">
+        <svg id="progressRing" viewBox="0 0 200 200">
+          <circle class="progressBg" cx="100" cy="100" r="90"/>
+          <circle class="progressFill" cx="100" cy="100" r="90"/>
+        </svg>
+        <div id="progressLabel">0%</div>
+      </div>
+    </main>
+
+    <!-- CLASS PANELS -->
+    <section id="classPanels">
+      <div class="classCard" id="card6A">
+        <div class="classHeader">
+          <span class="className">6A</span>
+          <span class="classStatus" id="status6A">—</span>
+        </div>
+        <div class="classNext" id="next6A">Next break: —</div>
+        <div class="classProgress">
+          <div class="classBar" id="bar6A"></div>
+        </div>
+      </div>
+
+      <div class="classCard" id="card6B">
+        <div class="classHeader">
+          <span class="className">6B</span>
+          <span class="classStatus" id="status6B">—</span>
+        </div>
+        <div class="classNext" id="next6B">Next break: —</div>
+        <div class="classProgress">
+          <div class="classBar" id="bar6B"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ALERT BANNER -->
+    <div id="alertBanner" class="hidden">
+      <span id="alertIcon">⚠️</span>
+      <span id="alertText">Break ending soon!</span>
     </div>
 
-    <div class="barRow">
-        <div class="barLabel">6B</div>
-        <div class="barOuter"><div class="barFill barFillB"></div></div>
-    </div>
-</div>
+  </div>
 
-<!-- CONTROLS -->
-<div id="controls">
-    <select id="yearSelect">
-        <option value="6" selected>Year 6 (6A & 6B)</option>
-        <option value="6A">6A only</option>
-        <option value="6B">6B only</option>
-    </select>
-    <button id="refreshBtn">Reload</button>
-    <button id="debugToggle">Debug</button>
-    <button id="testBell" class="iconBtn">🔔</button>
-</div>
+  <!-- SETTINGS PANEL -->
+  <div id="settingsToggle">⚙️</div>
+  <div id="settingsPanel" class="hidden">
+    <h3>Settings</h3>
+    <label>
+      <span>View Mode</span>
+      <select id="yearSelect">
+        <option value="6" selected>Both Classes</option>
+        <option value="6A">6A Only</option>
+        <option value="6B">6B Only</option>
+      </select>
+    </label>
+    <label>
+      <span>Sound Alerts</span>
+      <input type="checkbox" id="soundEnabled" checked>
+    </label>
+    <button id="testSound">Test Alert Sound</button>
+    <button id="reloadData">Reload Schedule</button>
+  </div>
 
-<!-- DEBUG PANEL -->
-<div id="debugPanel">
-    <textarea id="debugOutput"></textarea>
-</div>
+  <!-- AUDIO -->
+  <audio id="alertSound" preload="auto">
+    <source src="assets/alert.mp3" type="audio/mpeg">
+  </audio>
 
-<!-- BELL -->
-<audio id="bell" src="assets/school_bell.mp3" preload="auto"></audio>
-
-<script src="js/parser.js"></script>
-<script src="js/app.js"></script>
-
+  <script src="js/parser.js"></script>
+  <script src="js/app.js"></script>
 </body>
 </html>
