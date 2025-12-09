@@ -1,4 +1,4 @@
-// app.js — FINAL STATE ENGINE
+// app.js — FULL VERSION
 
 const iconArea     = document.getElementById("iconArea");
 const mainMessage  = document.getElementById("mainMessage");
@@ -14,29 +14,24 @@ const refreshBtn   = document.getElementById("refreshBtn");
 const debugToggle  = document.getElementById("debugToggle");
 const debugPanel   = document.getElementById("debugPanel");
 const debugOutput  = document.getElementById("debugOutput");
+const testBell     = document.getElementById("testBell");
 
 const bell         = document.getElementById("bell");
 
 let schedule6A = null;
 let schedule6B = null;
-let lastEndA=null, lastEndB=null;
 
-const SCHOOL_OPEN  = 7*3600;
-const SCHOOL_CLOSE = 17.5*3600;
+let lastEndA = null;
+let lastEndB = null;
 
-async function loadAll(){
-  schedule6A = await getScheduleForYear("6A");
-  schedule6B = await getScheduleForYear("6B");
-  debugOutput.value = JSON.stringify({schedule6A,schedule6B},null,2);
-}
-refreshBtn.onclick = loadAll;
-debugToggle.onclick = ()=> debugPanel.style.display = debugPanel.style.display==="block" ? "none" : "block";
-document.getElementById("testBell").onclick = ()=> bell.play();
+const SCHOOL_OPEN  = 7  * 3600;
+const SCHOOL_CLOSE = 17.5 * 3600;
 
-yearSelect.onchange = loadAll;
+
+/* ------------------------------ HELPERS ------------------------------ */
 
 function nowClock(){
-  const d=new Date();
+  const d = new Date();
   return `${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;
 }
 
@@ -49,6 +44,7 @@ function fmt(sec){
 function getBreakState(schedule, nowSec, day){
   const arr = schedule.breaksByDay[day] || [];
   let active=null, next=null;
+
   for(const b of arr){
     const s=b.startMinutes*60, e=b.endMinutes*60;
     if(nowSec>=s && nowSec<e) active={...b,startSec:s,endSec:e};
@@ -60,15 +56,41 @@ function getBreakState(schedule, nowSec, day){
 function barFill(next,now){
   if(!next) return "0%";
   const until = next.startSec-now;
-  const ratio = Math.max(0,Math.min(1,1-until/5400));
-  return (ratio*100)+"%";
+  return (Math.max(0,Math.min(1,1-until/5400))*100)+"%";
 }
 
 function playBell(type){
-  if(type==="lunch") return;
+  if(type==="lunch") return; // LUNCH NEVER RINGS
   bell.currentTime=0;
   bell.play().catch(()=>{});
 }
+
+
+/* ------------------------------ UI STATE ------------------------------ */
+
+function setState(bgClass, icon, main, sub, anim=null){
+  document.body.className = bgClass;
+  iconArea.textContent = icon;
+  mainMessage.textContent = main;
+  subMessage.textContent = sub;
+  iconArea.style.animationName = anim ? anim : "none";
+}
+
+
+/* ------------------------------ MAIN LOOP ------------------------------ */
+
+async function loadAll(){
+  schedule6A = await getScheduleForYear("6A");
+  schedule6B = await getScheduleForYear("6B");
+  debugOutput.value = JSON.stringify({schedule6A,schedule6B},null,2);
+}
+
+refreshBtn.onclick = loadAll;
+debugToggle.onclick = ()=> debugPanel.style.display = 
+  debugPanel.style.display==="block" ? "none" : "block";
+testBell.onclick = ()=> bell.play();
+yearSelect.onchange = loadAll;
+
 
 function update(){
   const d = new Date();
@@ -77,7 +99,7 @@ function update(){
   clockCorner.textContent = nowClock();
 
   if(nowSec<SCHOOL_OPEN || nowSec>SCHOOL_CLOSE){
-    setState("class","🎒","School Closed"," ");
+    setState("state-class","🎒","School Closed","");
     combinedSec.style.display="none";
     return;
   }
@@ -87,19 +109,23 @@ function update(){
 
   const mode = yearSelect.value;
 
-  // ---------------- SINGLE CLASS MODES ----------------
+
+  /* ---------------- SINGLE CLASS MODES ---------------- */
   if(mode==="6A" || mode==="6B"){
     combinedSec.style.display="none";
     const st = mode==="6A"? stA : stB;
 
     if(st.active){
       const left=st.active.endSec-nowSec;
-      const label = st.active.type==="lunch"?"Lunch ends in:":"Break ends in:";
-      const icon  = st.active.type==="lunch"?"🍽️":"⚽";
-      const anim  = st.active.type==="lunch"?"bounce":"bounce";
-      const bg    = left<=60 ? "state-ending":"state-break";
+      const isLunch = st.active.type==="lunch";
 
-      setState(bg,icon,(st.active.type==="lunch"?"LUNCH":"BREAK TIME!"),`${label} ${fmt(left)}`,anim);
+      setState(
+        left<=60 ? "state-ending" : (isLunch?"state-lunch":"state-break"),
+        isLunch ? "🍽️" : "⚽",
+        isLunch ? "LUNCH TIME!" : "BREAK TIME!",
+        `${isLunch?"Lunch ends in:":"Break ends in:"} ${fmt(left)}`,
+        isLunch ? "bounce" : "bounce"
+      );
 
       const last = mode==="6A"? lastEndA : lastEndB;
       if(!last) mode==="6A"? lastEndA=st.active.endSec : lastEndB=st.active.endSec;
@@ -113,11 +139,14 @@ function update(){
     if(st.next){
       const until = st.next.startSec-nowSec;
       const isLunch = st.next.type==="lunch";
-      const label = isLunch?"Lunch starts in:":"Break starts in:";
-      const icon  = isLunch?"🍽️":"🕒";
-      const anim  = "pulse";
-      const bg    = until<=300 ? "state-soon" : "state-class";
-      setState(bg,icon,(isLunch?"LUNCH SOON":"BREAK SOON"),`${label} ${fmt(until)}`,anim);
+
+      setState(
+        until<=300 ? "state-soon" : "state-class",
+        isLunch ? "🍽️" : "🕒",
+        isLunch ? "LUNCH SOON" : "BREAK SOON",
+        `${isLunch?"Lunch starts in:":"Break starts in:"} ${fmt(until)}`,
+        "pulse"
+      );
       return;
     }
 
@@ -126,9 +155,10 @@ function update(){
   }
 
 
-  // ---------------- COMBINED MODE (Year 6) ----------------
 
-  // Active break for either?
+  /* ---------------- COMBINED MODE ---------------- */
+
+  // ACTIVE BREAK FIRST
   if(stA.active || stB.active){
     combinedSec.style.display="none";
 
@@ -139,49 +169,44 @@ function update(){
 
     const left = ch.endSec-nowSec;
     const isLunch = ch.type==="lunch";
-    const icon = isLunch?"🍽️":"⚽";
-    const msg  = isLunch?"LUNCH":"BREAK TIME!";
-    const label= isLunch?"Lunch ends in:":"Break ends in:";
-    const anim = isLunch?"bounce":"bounce";
-    const bg   = left<=60 ? "state-ending":"state-break";
 
-    setState(bg,icon,msg,`${label} ${fmt(left)}`,anim);
+    setState(
+      left<=60 ? "state-ending" : (isLunch?"state-lunch":"state-break"),
+      isLunch ? "🍽️" : "⚽",
+      isLunch ? "LUNCH TIME!" : "BREAK TIME!",
+      `${isLunch?"Lunch ends in:":"Break ends in:"} ${fmt(left)}`,
+      "bounce"
+    );
 
-    const last = owner==="6A"? lastEndA:lastEndB;
+    const last = owner==="6A"? lastEndA : lastEndB;
     if(!last) owner==="6A"? lastEndA=ch.endSec : lastEndB=ch.endSec;
     if(last===nowSec){
       playBell(ch.type);
       owner==="6A"? lastEndA=null : lastEndB=null;
     }
+
     return;
   }
 
-  // No active breaks → combined preview
+  // NO ACTIVE — CLASS TIME PREVIEW
   combinedSec.style.display="block";
 
   const nA = stA.next;
   const nB = stB.next;
 
-  setState("state-class","🎒","Class Time"," ");
+  let txtA = nA ? `${nA.type==="lunch"?"Lunch":"Break"} at ${nA.startLabel}` : "—";
+  let txtB = nB ? `${nB.type==="lunch"?"Lunch":"Break"} at ${nB.startLabel}` : "—";
 
-  combinedText.textContent =
-    `6A next: ${nA? (nA.type==="lunch"?"Lunch":"Break")+" at "+nA.startLabel : "—"} • `+
-    `6B next: ${nB? (nB.type==="lunch"?"Lunch":"Break")+" at "+nB.startLabel : "—"}`;
+  combinedText.textContent = `6A next: ${txtA} • 6B next: ${txtB}`;
+
+  setState("state-class","🎒","Class Time","Next breaks shown below");
 
   barA.style.width = barFill(nA,nowSec);
   barB.style.width = barFill(nB,nowSec);
 }
 
 
-function setState(bgClass, icon, main, sub, anim=null){
-  document.body.className = bgClass;
-  iconArea.textContent = icon;
-  mainMessage.textContent = main;
-  subMessage.textContent = sub;
-
-  iconArea.style.animationName = anim ? anim : "none";
-}
-
+/* ---------------- RUN ---------------- */
 (async()=>{
   await loadAll();
   update();
