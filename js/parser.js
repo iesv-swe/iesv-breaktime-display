@@ -1,5 +1,3 @@
-// parser.js – only detects Passing Time, Break Senior, Lunch
-
 const LESSONS_FILE = "../Lessons.txt";
 
 async function getScheduleForYear(yearKey) {
@@ -49,15 +47,12 @@ function buildBreakSchedule(text, yearKey){
     });
   }
 
-  // sort
   for(const d of Object.keys(out)){
     out[d].sort((a,b)=>a.startMinutes-b.startMinutes);
   }
-
   return {breaksByDay:out};
 }
 
-// UTILITIES
 function normalizeDay(d){
   d=d.toLowerCase();
   if(d==="mon"||d==="mån")return"Mon";
