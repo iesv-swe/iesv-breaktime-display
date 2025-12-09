@@ -1,6 +1,6 @@
-// js/parser.js — IMPROVED VERSION
+// js/parser.js — COMPLETE FILE FOR GITHUB PAGES
 
-const LESSONS_FILE = '../Lessons.txt';
+const LESSONS_FILE = 'Lessons.txt';
 
 /**
  * Fetches and parses schedule for a given year group
@@ -33,7 +33,6 @@ async function getScheduleForYear(yearKey) {
   }
 }
 
-// Expose to global scope
 window.getScheduleForYear = getScheduleForYear;
 
 /**
@@ -57,86 +56,72 @@ function buildBreakSchedule(text, yearKey) {
   let skipped = 0;
 
   for (const raw of lines) {
-    // Skip empty lines
     if (!raw.trim()) continue;
     
-    // Split by tabs first, fall back to whitespace
+    // Split by tabs first, fall back to 2+ spaces
     const cols = raw.includes('\t') 
       ? raw.split('\t').map(c => c.trim())
-      : raw.split(/\s{2,}/).map(c => c.trim()); // 2+ spaces as delimiter
+      : raw.split(/\s{2,}/).map(c => c.trim());
     
-    // Need at least 7 columns
     if (cols.length < 7) {
       skipped++;
       continue;
     }
 
-    // Extract fields (adjust indices based on your file format)
     const title = (cols[1] || '').toLowerCase();
     const dayRaw = (cols[2] || '').trim();
     const startTime = (cols[3] || '').trim();
     const duration = parseInt(cols[4] || '0', 10);
     const groups = (cols[6] || '');
 
-    // Normalize day
     const day = normalizeDay(dayRaw);
     if (!day) {
       skipped++;
       continue;
     }
 
-    // Determine break type
     const type = classifyBreakType(title);
     if (!type) {
       skipped++;
-      continue; // Not a break entry
+      continue;
     }
 
-    // Check if matches requested year
     const tokens = normalizeTokens(groups);
     if (!matchesYear(tokens, yearKey)) {
       skipped++;
       continue;
     }
 
-    // Validate time format (HHMM)
     if (!/^\d{4}$/.test(startTime)) {
-      console.warn(`⚠️ Invalid time format: "${startTime}" in line: ${raw.substring(0, 50)}...`);
       skipped++;
       continue;
     }
 
-    // Validate duration
     if (duration <= 0 || duration > 120) {
-      console.warn(`⚠️ Invalid duration: ${duration} in line: ${raw.substring(0, 50)}...`);
       skipped++;
       continue;
     }
 
-    // Calculate times
     const startMinutes = parseTime(startTime);
     const endMinutes = startMinutes + duration;
 
-    // Add to schedule
     out[day].push({
       type,
       startMinutes,
       endMinutes,
       startLabel: formatTime(startMinutes),
       endLabel: formatTime(endMinutes),
-      duration,
-      rawTitle: title
+      duration
     });
     
     parsed++;
   }
 
-  // Sort each day by start time
   for (const day of Object.keys(out)) {
     out[day].sort((a, b) => a.startMinutes - b.startMinutes);
   }
 
-  console.log(`📊 Parser stats: ${parsed} breaks parsed, ${skipped} lines skipped`);
+  console.log(`📊 Parser: ${parsed} breaks found, ${skipped} lines skipped`);
 
   return { breaksByDay: out };
 }
@@ -147,27 +132,24 @@ function buildBreakSchedule(text, yearKey) {
  * @returns {string|null} - 'break', 'lunch', or null
  */
 function classifyBreakType(title) {
-  // Normalize the title
   const t = title.toLowerCase();
   
-  // Lunch variants
   if (t.includes('lunch')) {
     return 'lunch';
   }
   
-  // Break variants (adjust these based on your actual data)
   if (
     t.includes('break senior') ||
     t.includes('break') ||
     t.includes('passing time') ||
     t.includes('recess') ||
     t.includes('morning tea') ||
-    t.includes('interval')
+    t.includes('interval') ||
+    t.includes('rast')
   ) {
     return 'break';
   }
   
-  // Not a break
   return null;
 }
 
@@ -180,29 +162,27 @@ function normalizeDay(d) {
   const day = d.toLowerCase().trim();
   
   const mapping = {
-    // English
     'mon': 'Mon',
     'monday': 'Mon',
+    'mån': 'Mon',
+    'måndag': 'Mon',
     'tue': 'Tue',
     'tues': 'Tue',
     'tuesday': 'Tue',
+    'tis': 'Tue',
+    'tisdag': 'Tue',
     'wed': 'Wed',
     'wednesday': 'Wed',
+    'ons': 'Wed',
+    'onsdag': 'Wed',
     'thu': 'Thur',
     'thur': 'Thur',
     'thurs': 'Thur',
     'thursday': 'Thur',
-    'fri': 'Fri',
-    'friday': 'Fri',
-    // Swedish
-    'mån': 'Mon',
-    'måndag': 'Mon',
-    'tis': 'Tue',
-    'tisdag': 'Tue',
-    'ons': 'Wed',
-    'onsdag': 'Wed',
     'tor': 'Thur',
     'torsdag': 'Thur',
+    'fri': 'Fri',
+    'friday': 'Fri',
     'fre': 'Fri',
     'fredag': 'Fri'
   };
@@ -230,13 +210,11 @@ function normalizeTokens(field) {
  */
 function matchesYear(tokens, yearKey) {
   if (yearKey === '6') {
-    // Match either 6A or 6B
     return tokens.some(t => 
       t.startsWith('6A') || t.startsWith('6B') || t === '6'
     );
   }
   
-  // Match specific class
   return tokens.some(t => t.startsWith(yearKey.toUpperCase()));
 }
 
