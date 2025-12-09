@@ -4,11 +4,12 @@
   <meta charset="UTF-8">
   <title>Break Countdown – IESV</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
   <style>
     * {
-      box-sizing: border-box;
       margin: 0;
       padding: 0;
+      box-sizing: border-box;
     }
 
     :root {
@@ -18,277 +19,149 @@
       --bg-no-more: linear-gradient(135deg, #311b92, #512da8);
       --text-main: #ffffff;
       --text-muted: #cfd8dc;
-      --card-bg: rgba(0, 0, 0, 0.35);
-      --card-border: rgba(255, 255, 255, 0.1);
     }
 
     body {
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      min-height: 100vh;
+      font-family: system-ui, sans-serif;
+      height: 100vh;
       display: flex;
+      flex-direction: column;
+      justify-content: space-between; /* Top menu + timer + bottom info */
       align-items: center;
-      justify-content: center;
       background: var(--bg-normal);
       color: var(--text-main);
-      transition: background 0.6s ease;
+      transition: background 0.5s ease;
+      overflow: hidden;
     }
 
-    body.state-upcoming {
-      background: var(--bg-upcoming);
-    }
-
-    body.state-inbreak {
-      background: var(--bg-inbreak);
-    }
-
-    body.state-none {
-      background: var(--bg-no-more);
-    }
+    body.state-upcoming { background: var(--bg-upcoming); }
+    body.state-inbreak { background: var(--bg-inbreak); }
+    body.state-none { background: var(--bg-no-more); }
 
     body.state-warning {
       animation: flash-bg 1s ease-in-out infinite alternate;
     }
 
     @keyframes flash-bg {
-      0% {
-        filter: brightness(1);
-      }
-      100% {
-        filter: brightness(1.3);
-      }
+      0% { filter: brightness(1); }
+      100% { filter: brightness(1.3); }
     }
 
-    .app {
+    /* ------------------ TOP CONTROLS ------------------ */
+    .top-controls {
       width: 100%;
       max-width: 900px;
-      padding: 20px;
-    }
-
-    .card {
-      background: var(--card-bg);
-      border: 1px solid var(--card-border);
-      border-radius: 24px;
-      padding: 24px 24px 18px 24px;
-      backdrop-filter: blur(10px);
-      box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
-    }
-
-    header {
-      display: flex;
-      justify-content: space-between;
-      align-items: baseline;
-      margin-bottom: 8px;
-      gap: 16px;
-    }
-
-    header h1 {
-      font-size: clamp(1.2rem, 1.8vw + 0.8rem, 1.8rem);
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
-      opacity: 0.9;
-    }
-
-    .day-label {
-      font-size: 0.9rem;
-      color: var(--text-muted);
-    }
-
-    .status-row {
+      padding: 10px;
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 12px;
-      gap: 16px;
+      gap: 10px;
     }
 
-    .status-text {
-      font-size: 1.1rem;
-      font-weight: 500;
-      text-shadow: 0 0 8px rgba(0, 0, 0, 0.6);
+    select, button {
+      background: rgba(0,0,0,0.5);
+      color: white;
+      border: 1px solid rgba(255,255,255,0.3);
+      padding: 6px 10px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.9rem;
     }
 
-    .status-detail {
-      font-size: 0.95rem;
-      color: var(--text-muted);
-    }
+    button:hover { background: rgba(255,255,255,0.15); }
 
-    .countdown {
+    /* ------------------ FULLSCREEN TIMER ------------------ */
+    .timer-container {
+      flex: 1;
       display: flex;
       justify-content: center;
-      align-items: baseline;
-      margin: 8px 0 4px 0;
+      align-items: center;
+      width: 100%;
+      text-align: center;
+      padding: 10px;
     }
 
     #timerDisplay {
-      font-variant-numeric: tabular-nums;
       font-weight: 700;
-      letter-spacing: 0.08em;
-      font-size: clamp(3.3rem, 6vw + 1rem, 5.5rem);
-      text-shadow: 0 0 16px rgba(0, 0, 0, 0.7);
+      font-variant-numeric: tabular-nums;
+      font-size: 18vw;      /* MASSIVE timer filling screen */
+      letter-spacing: 0.05em;
+      text-shadow: 0 0 25px rgba(0,0,0,0.6);
+      line-height: 1;
     }
 
-    .countdown-label {
+    /* ------------------ BOTTOM INFO ------------------ */
+    .bottom-info {
+      width: 100%;
+      text-align: center;
+      padding-bottom: 10px;
+    }
+
+    #statusText {
+      font-size: 1.3rem;
+      font-weight: 600;
+    }
+
+    #statusDetail, #timerLabel {
       font-size: 0.9rem;
       color: var(--text-muted);
-      text-align: center;
-      margin-bottom: 10px;
+      margin-top: 4px;
     }
 
-    .controls {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-      align-items: center;
-      justify-content: space-between;
-      margin-top: 10px;
-      border-top: 1px solid rgba(255, 255, 255, 0.08);
-      padding-top: 12px;
-    }
-
-    .select-group {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      font-size: 0.9rem;
-    }
-
-    select {
-      background: rgba(0, 0, 0, 0.6);
-      border-radius: 999px;
-      border: 1px solid rgba(255, 255, 255, 0.2);
-      color: #fff;
-      padding: 6px 10px;
-      font-size: 0.9rem;
-      outline: none;
-    }
-
-    button {
-      background: rgba(255, 255, 255, 0.09);
-      border-radius: 999px;
-      border: 1px solid rgba(255, 255, 255, 0.3);
-      color: #fff;
-      padding: 6px 12px;
-      font-size: 0.85rem;
-      cursor: pointer;
-      transition: background 0.2s ease, transform 0.1s ease;
-    }
-
-    button:hover {
-      background: rgba(255, 255, 255, 0.18);
-      transform: translateY(-1px);
-    }
-
-    button:active {
-      transform: translateY(0);
-    }
-
-    .debug-toggle {
-      font-size: 0.8rem;
-      opacity: 0.85;
-    }
-
-    .debug-panel {
-      margin-top: 10px;
+    /* ------------------ DEBUG PANEL ------------------ */
+    #debugPanel {
       display: none;
+      width: 95%;
+      max-width: 900px;
+      margin: 10px auto;
     }
 
-    .debug-panel.visible {
-      display: block;
-    }
+    #debugPanel.visible { display: block; }
 
     textarea {
       width: 100%;
-      min-height: 160px;
-      border-radius: 16px;
-      border: 1px solid rgba(255, 255, 255, 0.2);
-      background: rgba(0, 0, 0, 0.7);
-      padding: 10px;
+      height: 180px;
+      background: rgba(0,0,0,0.6);
+      border: 1px solid rgba(255,255,255,0.3);
       color: #e0f7fa;
-      font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-      font-size: 0.8rem;
-      resize: vertical;
-    }
-
-    .debug-panel-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 6px;
+      border-radius: 10px;
+      padding: 10px;
       font-size: 0.85rem;
-      color: var(--text-muted);
-    }
-
-    @media (max-width: 600px) {
-      .card {
-        padding: 18px 16px 12px 16px;
-      }
-
-      header {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 4px;
-      }
-
-      .status-row {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 4px;
-      }
-
-      .controls {
-        flex-direction: column;
-        align-items: flex-start;
-      }
+      font-family: monospace;
     }
   </style>
 </head>
+
 <body>
-  <div class="app">
-    <div class="card">
-      <header>
-        <h1>BREAK COUNTDOWN</h1>
-        <div class="day-label" id="dayLabel">Loading day…</div>
-      </header>
 
-      <div class="status-row">
-        <div>
-          <div class="status-text" id="statusText">Loading schedule…</div>
-          <div class="status-detail" id="statusDetail"></div>
-        </div>
-      </div>
+  <!-- ------------------ TOP MENU ------------------ -->
+  <div class="top-controls">
+    <select id="yearSelect">
+      <option value="6" selected>Year 6 (6A + 6B)</option>
+      <option value="6A">6A only</option>
+      <option value="6B">6B only</option>
+    </select>
 
-      <div class="countdown">
-        <div id="timerDisplay">--:--</div>
-      </div>
-      <div class="countdown-label" id="timerLabel"></div>
+    <button id="refreshButton">Reload</button>
+    <button id="debugToggle">Debug</button>
+  </div>
 
-      <div class="controls">
-        <div class="select-group">
-          <span>Year:</span>
-          <select id="yearSelect">
-            <option value="6" selected>Year 6 (6A + 6B)</option>
-            <option value="6A">6A only</option>
-            <option value="6B">6B only</option>
-          </select>
-        </div>
+  <!-- ------------------ FULLSCREEN TIMER ------------------ -->
+  <div class="timer-container">
+    <div id="timerDisplay">--:--</div>
+  </div>
 
-        <div class="select-group">
-          <button type="button" id="refreshButton">Reload schedule</button>
-        </div>
+  <!-- ------------------ BOTTOM INFO ------------------ -->
+  <div class="bottom-info">
+    <div id="statusText">Loading…</div>
+    <div id="statusDetail"></div>
+    <div id="timerLabel"></div>
+  </div>
 
-        <button type="button" class="debug-toggle" id="debugToggle">
-          Show schedule.json
-        </button>
-      </div>
-
-      <div class="debug-panel" id="debugPanel">
-        <div class="debug-panel-header">
-          <span>Generated schedule.json (for debugging / copying)</span>
-          <button type="button" id="downloadJsonButton">Download JSON</button>
-        </div>
-        <textarea id="scheduleJson" readonly></textarea>
-      </div>
-    </div>
+  <!-- ------------------ DEBUG PANEL ------------------ -->
+  <div id="debugPanel">
+    <textarea id="scheduleJson" readonly></textarea>
+    <button id="downloadJsonButton">Download JSON</button>
   </div>
 
   <script src="parser.js"></script>
@@ -300,7 +173,6 @@
     const downloadJsonButton = document.getElementById("downloadJsonButton");
     const scheduleJsonText = document.getElementById("scheduleJson");
 
-    const dayLabel = document.getElementById("dayLabel");
     const statusText = document.getElementById("statusText");
     const statusDetail = document.getElementById("statusDetail");
     const timerDisplay = document.getElementById("timerDisplay");
@@ -309,186 +181,110 @@
     let currentSchedule = null;
 
     function getTodayAbbrev() {
-      const d = new Date();
-      const day = d.getDay(); // 0 = Sun, 1 = Mon, ... 6 = Sat
-      const map = {
-        1: "Mon",
-        2: "Tue",
-        3: "Wed",
-        4: "Thur",
-        5: "Fri"
-      };
-      return map[day] || null;
-    }
-
-    function updateDayLabel() {
-      const abbrev = getTodayAbbrev();
-      if (!abbrev) {
-        dayLabel.textContent = "Weekend (no schedule)";
-      } else {
-        const today = new Date();
-        const opts = { weekday: "long", day: "numeric", month: "short" };
-        dayLabel.textContent = today.toLocaleDateString(undefined, opts) + ` • ${abbrev}`;
-      }
+      return ["Sun","Mon","Tue","Wed","Thur","Fri","Sat"][new Date().getDay()];
     }
 
     async function loadSchedule() {
       const yearKey = yearSelect.value;
+
+      statusText.textContent = "Loading schedule…";
+      document.body.className = "";
+
       try {
-        statusText.textContent = "Loading schedule…";
-        document.body.className = "";
         currentSchedule = await getScheduleForYear(yearKey);
         scheduleJsonText.value = JSON.stringify(currentSchedule, null, 2);
         statusText.textContent = "Schedule loaded";
-        statusDetail.textContent = "Countdown will follow today's breaks automatically.";
       } catch (err) {
         console.error(err);
         statusText.textContent = "Error loading schedule";
-        statusDetail.textContent = "Check Lessons.txt and reload.";
       }
     }
 
-    function formatSecondsToClock(totalSeconds) {
-      if (totalSeconds < 0) totalSeconds = 0;
-      const hours = Math.floor(totalSeconds / 3600);
-      const minutes = Math.floor((totalSeconds % 3600) / 60);
-      const seconds = totalSeconds % 60;
-
-      if (hours > 0) {
-        return (
-          String(hours).padStart(2, "0") + ":" +
-          String(minutes).padStart(2, "0") + ":" +
-          String(seconds).padStart(2, "0")
-        );
-      } else {
-        return (
-          String(minutes).padStart(2, "0") + ":" +
-          String(seconds).padStart(2, "0")
-        );
-      }
+    function formatTime(seconds) {
+      if (seconds < 0) seconds = 0;
+      const m = Math.floor(seconds / 60);
+      const s = seconds % 60;
+      return `${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}`;
     }
 
     function updateCountdown() {
-      updateDayLabel();
+      const day = getTodayAbbrev();
+      const breaks = (currentSchedule?.breaksByDay?.[day]) || [];
+      const lessons = (currentSchedule?.lessonsByDay?.[day]) || [];
 
-      if (!currentSchedule) {
-        timerDisplay.textContent = "--:--";
-        timerLabel.textContent = "";
-        return;
-      }
-
-      const abbrev = getTodayAbbrev();
-      if (!abbrev) {
+      if (!breaks.length) {
         document.body.className = "state-none";
-        statusText.textContent = "No school today";
-        statusDetail.textContent = "Weekend detected.";
-        timerDisplay.textContent = "--:--";
-        timerLabel.textContent = "";
-        return;
-      }
-
-      const breaksForDay = currentSchedule.breaksByDay[abbrev] || [];
-      const lessonsForDay = currentSchedule.lessonsByDay[abbrev] || [];
-
-      if (!breaksForDay.length || !lessonsForDay.length) {
-        document.body.className = "state-none";
-        statusText.textContent = "No break schedule found for today";
-        statusDetail.textContent = `Day: ${abbrev}`;
+        statusText.textContent = "No breaks today";
         timerDisplay.textContent = "--:--";
         timerLabel.textContent = "";
         return;
       }
 
       const now = new Date();
-      const nowMinutes = now.getHours() * 60 + now.getMinutes();
-      const nowSeconds = now.getSeconds();
-      const nowTotalSeconds = nowMinutes * 60 + nowSeconds;
+      const nowSeconds = now.getHours()*3600 + now.getMinutes()*60 + now.getSeconds();
 
       let currentBreak = null;
       let nextBreak = null;
 
-      for (const brk of breaksForDay) {
-        const startSec = brk.startMinutes * 60;
-        const endSec = brk.endMinutes * 60;
+      for (const b of breaks) {
+        const start = b.startMinutes*60;
+        const end = b.endMinutes*60;
 
-        if (nowTotalSeconds >= startSec && nowTotalSeconds < endSec) {
-          currentBreak = { ...brk, startSec, endSec };
+        if (nowSeconds >= start && nowSeconds < end) {
+          currentBreak = { ...b, startSec: start, endSec: end };
           break;
         }
-        if (nowTotalSeconds < startSec) {
-          if (!nextBreak || startSec < nextBreak.startSec) {
-            nextBreak = { ...brk, startSec, endSec };
-          }
+        if (nowSeconds < start && !nextBreak) {
+          nextBreak = { ...b, startSec: start, endSec: end };
         }
       }
 
-      let bodyState = "";
-      let warning = false;
-
       if (currentBreak) {
-        const secondsLeft = currentBreak.endSec - nowTotalSeconds;
-        timerDisplay.textContent = formatSecondsToClock(secondsLeft);
+        const left = currentBreak.endSec - nowSeconds;
+        timerDisplay.textContent = formatTime(left);
         timerLabel.textContent = "Time left in break";
         statusText.textContent = "IN BREAK";
-        statusDetail.textContent =
-          `Ends at ${currentBreak.endLabel} • ${currentBreak.duration} min (${currentBreak.type.replace("-", " ")})`;
-        bodyState = "state-inbreak";
-
-        if (secondsLeft <= 60) warning = true;
-      } else if (nextBreak) {
-        const secondsUntil = nextBreak.startSec - nowTotalSeconds;
-        timerDisplay.textContent = formatSecondsToClock(secondsUntil);
-        timerLabel.textContent = "Time until next break";
-        statusText.textContent = "Next break coming up";
-        statusDetail.textContent =
-          `Starts at ${nextBreak.startLabel}, ends at ${nextBreak.endLabel} • ${nextBreak.duration} min (${nextBreak.type.replace("-", " ")})`;
-        bodyState = "state-upcoming";
-
-        if (secondsUntil <= 60) warning = true;
-      } else {
-        document.body.className = "state-none";
-        statusText.textContent = "No more breaks today";
-        const firstLesson = lessonsForDay[0];
-        const lastLesson = lessonsForDay[lessonsForDay.length - 1];
-        statusDetail.textContent = firstLesson && lastLesson
-          ? `School day: ${firstLesson.startLabel}–${lastLesson.endLabel}`
-          : `Day: ${abbrev}`;
-        timerDisplay.textContent = "--:--";
-        timerLabel.textContent = "";
+        statusDetail.textContent = `Ends ${currentBreak.endLabel} (${currentBreak.duration} min)`;
+        document.body.className = left <= 60 ? "state-inbreak state-warning" : "state-inbreak";
         return;
       }
 
-      // Apply body state + warning flash
-      document.body.className = bodyState + (warning ? " state-warning" : "");
+      if (nextBreak) {
+        const until = nextBreak.startSec - nowSeconds;
+        timerDisplay.textContent = formatTime(until);
+        timerLabel.textContent = "Time until next break";
+        statusText.textContent = "Next break coming up";
+        statusDetail.textContent = `Starts ${nextBreak.startLabel} (${nextBreak.duration} min)`;
+        document.body.className = until <= 60 ? "state-upcoming state-warning" : "state-upcoming";
+        return;
+      }
+
+      document.body.className = "state-none";
+      statusText.textContent = "No more breaks today";
+      timerDisplay.textContent = "--:--";
     }
 
-    function toggleDebugPanel() {
-      const isVisible = debugPanel.classList.toggle("visible");
-      debugToggle.textContent = isVisible ? "Hide schedule.json" : "Show schedule.json";
-    }
+    debugToggle.addEventListener("click", () => {
+      debugPanel.classList.toggle("visible");
+      debugToggle.textContent = debugPanel.classList.contains("visible")
+        ? "Hide Debug"
+        : "Debug";
+    });
 
-    function downloadJson() {
-      if (!scheduleJsonText.value.trim()) return;
+    downloadJsonButton.addEventListener("click", () => {
       const blob = new Blob([scheduleJsonText.value], { type: "application/json" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
       a.download = "schedule.json";
-      document.body.appendChild(a);
       a.click();
-      document.body.removeChild(a);
       URL.revokeObjectURL(url);
-    }
+    });
 
-    // Event wiring
     yearSelect.addEventListener("change", loadSchedule);
     refreshButton.addEventListener("click", loadSchedule);
-    debugToggle.addEventListener("click", toggleDebugPanel);
-    downloadJsonButton.addEventListener("click", downloadJson);
 
-    // Init
-    (async function init() {
-      updateDayLabel();
+    (async () => {
       await loadSchedule();
       updateCountdown();
       setInterval(updateCountdown, 1000);
