@@ -9,19 +9,19 @@
 
 <body>
 
-<!-- SMALL CLOCK (top-right) -->
-<div id="clockCorner"></div>
+<!-- SMALL CLOCK -->
+<div id="clockCorner">--:--</div>
 
 <!-- MAIN VISUAL PANEL -->
 <div id="visualContainer">
-    <div id="iconArea">⚽</div>
-    <div id="mainMessage">BREAK TIME!</div>
-    <div id="subMessage">Ends in: 10:00</div>
+    <div id="iconArea">🎒</div>
+    <div id="mainMessage">Class Time</div>
+    <div id="subMessage"></div>
 </div>
 
 <!-- YEAR 6 COMBINED SECTION -->
 <div id="combinedSection">
-    <div class="combinedText" id="combinedText"></div>
+    <div class="combinedText" id="combinedText">Next breaks shown below</div>
 
     <div class="barRow">
         <div class="barLabel">6A</div>
@@ -34,7 +34,7 @@
     </div>
 </div>
 
-<!-- TOP CONTROLS -->
+<!-- CONTROLS -->
 <div id="controls">
     <select id="yearSelect">
         <option value="6" selected>Year 6 (6A & 6B)</option>
@@ -53,11 +53,12 @@
     <button id="downloadDebug">Download JSON</button>
 </div>
 
-<!-- AUDIO -->
+<!-- BELL -->
 <audio id="bell" src="assets/school_bell.mp3" preload="auto"></audio>
 
-<!-- SCRIPTS -->
+<!-- APP SCRIPTS -->
 <script src="js/parser.js"></script>
 <script src="js/app.js"></script>
+
 </body>
 </html>
