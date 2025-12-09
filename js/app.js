@@ -1,4 +1,4 @@
-// app.js — FULL VERSION
+// app.js — FULL UPDATED VERSION
 
 const iconArea     = document.getElementById("iconArea");
 const mainMessage  = document.getElementById("mainMessage");
@@ -24,11 +24,11 @@ let schedule6B = null;
 let lastEndA = null;
 let lastEndB = null;
 
-const SCHOOL_OPEN  = 7  * 3600;
+const SCHOOL_OPEN  = 7 * 3600;
 const SCHOOL_CLOSE = 17.5 * 3600;
 
 
-/* ------------------------------ HELPERS ------------------------------ */
+/* -------------------- HELPERS -------------------- */
 
 function nowClock(){
   const d = new Date();
@@ -36,37 +36,40 @@ function nowClock(){
 }
 
 function fmt(sec){
-  if(sec<0)sec=0;
-  const m=Math.floor(sec/60), s=sec%60;
+  if(sec<0) sec = 0;
+  const m = Math.floor(sec/60);
+  const s = sec % 60;
   return `${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}`;
 }
 
-function getBreakState(schedule, nowSec, day){
-  const arr = schedule.breaksByDay[day] || [];
-  let active=null, next=null;
-
-  for(const b of arr){
-    const s=b.startMinutes*60, e=b.endMinutes*60;
-    if(nowSec>=s && nowSec<e) active={...b,startSec:s,endSec:e};
-    else if(nowSec<s && !next) next={...b,startSec:s,endSec:e};
-  }
-  return {active,next};
-}
-
-function barFill(next,now){
+function barFill(next, now){
   if(!next) return "0%";
-  const until = next.startSec-now;
-  return (Math.max(0,Math.min(1,1-until/5400))*100)+"%";
+  const until = next.startSec - now;
+  const ratio = Math.max(0,Math.min(1,1 - until/5400));
+  return (ratio*100) + "%";
 }
 
 function playBell(type){
-  if(type==="lunch") return; // LUNCH NEVER RINGS
-  bell.currentTime=0;
+  if(type === "lunch") return;
+  bell.currentTime = 0;
   bell.play().catch(()=>{});
 }
 
+function getBreakState(schedule, nowSec, day){
+  const rows = schedule.breaksByDay[day] || [];
+  let active=null, next=null;
 
-/* ------------------------------ UI STATE ------------------------------ */
+  for(const b of rows){
+    const s = b.startMinutes * 60;
+    const e = b.endMinutes * 60;
+
+    if(nowSec >= s && nowSec < e)
+      active = {...b, startSec:s, endSec:e};
+    else if(nowSec < s && !next)
+      next = {...b, startSec:s, endSec:e};
+  }
+  return {active,next};
+}
 
 function setState(bgClass, icon, main, sub, anim=null){
   document.body.className = bgClass;
@@ -77,18 +80,16 @@ function setState(bgClass, icon, main, sub, anim=null){
 }
 
 
-/* ------------------------------ MAIN LOOP ------------------------------ */
+/* -------------------- MAIN LOOP -------------------- */
 
 async function loadAll(){
   schedule6A = await getScheduleForYear("6A");
   schedule6B = await getScheduleForYear("6B");
   debugOutput.value = JSON.stringify({schedule6A,schedule6B},null,2);
 }
-
 refreshBtn.onclick = loadAll;
-debugToggle.onclick = ()=> debugPanel.style.display = 
-  debugPanel.style.display==="block" ? "none" : "block";
 testBell.onclick = ()=> bell.play();
+debugToggle.onclick = ()=> debugPanel.style.display = debugPanel.style.display==="block"?"none":"block";
 yearSelect.onchange = loadAll;
 
 
@@ -98,38 +99,37 @@ function update(){
   const day = ["Sun","Mon","Tue","Wed","Thur","Fri","Sat"][d.getDay()];
   clockCorner.textContent = nowClock();
 
-  if(nowSec<SCHOOL_OPEN || nowSec>SCHOOL_CLOSE){
+  if(nowSec < SCHOOL_OPEN || nowSec > SCHOOL_CLOSE){
+    combinedSec.style.display = "none";
     setState("state-class","🎒","School Closed","");
-    combinedSec.style.display="none";
     return;
   }
 
-  const stA = getBreakState(schedule6A,nowSec,day);
-  const stB = getBreakState(schedule6B,nowSec,day);
-
+  const stA = getBreakState(schedule6A, nowSec, day);
+  const stB = getBreakState(schedule6B, nowSec, day);
   const mode = yearSelect.value;
 
 
-  /* ---------------- SINGLE CLASS MODES ---------------- */
-  if(mode==="6A" || mode==="6B"){
-    combinedSec.style.display="none";
-    const st = mode==="6A"? stA : stB;
+  /* -------------- SINGLE CLASS MODE -------------- */
+  if(mode === "6A" || mode === "6B"){
+    combinedSec.style.display = "none";
+    const st = mode === "6A" ? stA : stB;
 
     if(st.active){
-      const left=st.active.endSec-nowSec;
-      const isLunch = st.active.type==="lunch";
+      const left = st.active.endSec - nowSec;
+      const isLunch = st.active.type === "lunch";
 
       setState(
-        left<=60 ? "state-ending" : (isLunch?"state-lunch":"state-break"),
+        left <= 60 ? "state-ending" : (isLunch ? "state-lunch" : "state-break"),
         isLunch ? "🍽️" : "⚽",
         isLunch ? "LUNCH TIME!" : "BREAK TIME!",
         `${isLunch?"Lunch ends in:":"Break ends in:"} ${fmt(left)}`,
-        isLunch ? "bounce" : "bounce"
+        "bounce"
       );
 
       const last = mode==="6A"? lastEndA : lastEndB;
-      if(!last) mode==="6A"? lastEndA=st.active.endSec : lastEndB=st.active.endSec;
-      if(last===nowSec){
+      if(!last) mode==="6A"? lastEndA = st.active.endSec : lastEndB = st.active.endSec;
+      if(last === nowSec){
         playBell(st.active.type);
         mode==="6A"? lastEndA=null : lastEndB=null;
       }
@@ -137,11 +137,11 @@ function update(){
     }
 
     if(st.next){
-      const until = st.next.startSec-nowSec;
-      const isLunch = st.next.type==="lunch";
+      const until = st.next.startSec - nowSec;
+      const isLunch = st.next.type === "lunch";
 
       setState(
-        until<=300 ? "state-soon" : "state-class",
+        until <= 300 ? "state-soon" : "state-class",
         isLunch ? "🍽️" : "🕒",
         isLunch ? "LUNCH SOON" : "BREAK SOON",
         `${isLunch?"Lunch starts in:":"Break starts in:"} ${fmt(until)}`,
@@ -156,18 +156,17 @@ function update(){
 
 
 
-  /* ---------------- COMBINED MODE ---------------- */
+  /* -------------- COMBINED MODE (6A + 6B) -------------- */
 
-  // ACTIVE BREAK FIRST
   if(stA.active || stB.active){
-    combinedSec.style.display="none";
+    combinedSec.style.display = "none";
 
-    let ch = stA.active, owner="6A";
+    let ch = stA.active, owner = "6A";
     if(stB.active && (!stA.active || stB.active.endSec < stA.active.endSec)){
-      ch=stB.active; owner="6B";
+      ch = stB.active; owner="6B";
     }
 
-    const left = ch.endSec-nowSec;
+    const left = ch.endSec - nowSec;
     const isLunch = ch.type==="lunch";
 
     setState(
@@ -188,25 +187,32 @@ function update(){
     return;
   }
 
-  // NO ACTIVE — CLASS TIME PREVIEW
-  combinedSec.style.display="block";
+
+  /* -------------- CLASS TIME + PREVIEW -------------- */
+
+  combinedSec.style.display = "block";
 
   const nA = stA.next;
   const nB = stB.next;
 
-  let txtA = nA ? `${nA.type==="lunch"?"Lunch":"Break"} at ${nA.startLabel}` : "—";
-  let txtB = nB ? `${nB.type==="lunch"?"Lunch":"Break"} at ${nB.startLabel}` : "—";
+  const txtA = nA ? `${nA.type==="lunch"?"Lunch":"Break"} at ${nA.startLabel}` : "—";
+  const txtB = nB ? `${nB.type==="lunch"?"Lunch":"Break"} at ${nB.startLabel}` : "—";
 
   combinedText.textContent = `6A next: ${txtA} • 6B next: ${txtB}`;
 
-  setState("state-class","🎒","Class Time","Next breaks shown below");
+  setState(
+    "state-class",
+    "🎒",
+    "Class Time",
+    "Next breaks shown below"
+  );
 
   barA.style.width = barFill(nA,nowSec);
   barB.style.width = barFill(nB,nowSec);
 }
 
 
-/* ---------------- RUN ---------------- */
+/* -------------------- START -------------------- */
 (async()=>{
   await loadAll();
   update();
