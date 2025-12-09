@@ -1,4 +1,4 @@
-// app.js — COMPLETELY UPDATED FOR C1 CARD LAYOUT
+// app.js — FULL VERSION WITH B2 "NEXT SCHOOL DAY LOOKAHEAD"
 
 const iconArea     = document.getElementById("iconArea");
 const mainMessage  = document.getElementById("mainMessage");
@@ -27,8 +27,10 @@ let lastEndB = null;
 const SCHOOL_OPEN  = 7 * 3600;
 const SCHOOL_CLOSE = 17.5 * 3600;
 
+const DAYS = ["Sun","Mon","Tue","Wed","Thur","Fri","Sat"];
 
-/* --------- HELPERS --------- */
+
+/* ---------------- HELPERS ---------------- */
 
 function nowClock(){
   const d = new Date();
@@ -36,23 +38,9 @@ function nowClock(){
 }
 
 function fmt(sec){
-  if(sec<0) sec = 0;
-  const m = Math.floor(sec/60);
-  const s = sec % 60;
+  if(sec < 0) sec = 0;
+  const m=Math.floor(sec/60), s=sec%60;
   return `${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}`;
-}
-
-function barFill(next, now){
-  if(!next) return "0%";
-  const until = next.startSec - now;
-  const ratio = Math.max(0, Math.min(1, 1 - until / 5400));
-  return (ratio * 100) + "%";
-}
-
-function playBell(type){
-  if(type === "lunch") return; // Lunch never rings
-  bell.currentTime = 0;
-  bell.play().catch(()=>{});
 }
 
 function getBreakState(schedule, nowSec, day){
@@ -61,7 +49,6 @@ function getBreakState(schedule, nowSec, day){
 
   for(const b of rows){
     const s=b.startMinutes*60, e=b.endMinutes*60;
-
     if(nowSec>=s && nowSec<e)
       active={...b,startSec:s,endSec:e};
     else if(nowSec<s && !next)
@@ -69,6 +56,34 @@ function getBreakState(schedule, nowSec, day){
   }
   return {active,next};
 }
+
+function barFill(next, now){
+  if(!next) return "0%";
+  const until = next.startSec - now;
+  return (Math.max(0, Math.min(1, 1 - until / 5400)) * 100) + "%";
+}
+
+
+/* -------------- NEXT SCHOOL DAY LOGIC (B2) -------------- */
+
+function getNextSchoolDayBreak(schedule, currentDayIndex){
+  let dayIndex = currentDayIndex;
+
+  for(let i=0;i<7;i++){
+    dayIndex = (dayIndex + 1) % 7;
+    const dName = DAYS[dayIndex];
+
+    if(dName === "Sat" || dName === "Sun") continue;
+
+    const rows = schedule.breaksByDay[dName] || [];
+    if(rows.length > 0) return { dayIndex, rows };
+  }
+
+  return null;
+}
+
+
+/* ---------------- STATE SETTER ---------------- */
 
 function setState(bgClass, icon, main, sub, anim=null){
   document.body.className = bgClass;
@@ -79,7 +94,7 @@ function setState(bgClass, icon, main, sub, anim=null){
 }
 
 
-/* --------- MAIN LOOP --------- */
+/* ---------------- MAIN LOOP ---------------- */
 
 async function loadAll(){
   schedule6A = await getScheduleForYear("6A");
@@ -88,126 +103,175 @@ async function loadAll(){
 }
 
 refreshBtn.onclick = loadAll;
-testBell.onclick   = ()=> bell.play();
+testBell.onclick = ()=> bell.play();
 debugToggle.onclick = ()=> debugPanel.style.display =
   debugPanel.style.display==="block" ? "none" : "block";
 yearSelect.onchange = loadAll;
 
 
 function update(){
-  const d   = new Date();
-  const nowSec = d.getHours()*3600 + d.getMinutes()*60 + d.getSeconds();
-  const day    = ["Sun","Mon","Tue","Wed","Thur","Fri","Sat"][d.getDay()];
+  const now = new Date();
+  const nowSec = now.getHours()*3600 + now.getMinutes()*60 + now.getSeconds();
+  const todayIndex = now.getDay();
+  const today = DAYS[todayIndex];
 
   clockCorner.textContent = nowClock();
 
-  if(nowSec < SCHOOL_OPEN || nowSec > SCHOOL_CLOSE){
-    combinedSec.style.display="none";
-    setState("state-class","🎒","School Closed","");
-    return;
-  }
+  const stA_today = getBreakState(schedule6A, nowSec, today);
+  const stB_today = getBreakState(schedule6B, nowSec, today);
 
-  const stA = getBreakState(schedule6A, nowSec, day);
-  const stB = getBreakState(schedule6B, nowSec, day);
   const mode = yearSelect.value;
 
 
-  /* -------- SINGLE CLASS MODE -------- */
+  /* -------- IF TODAY HAS NO BREAKS LEFT, LOOK AHEAD (B2) -------- */
+
+  function getFallback(schedule){
+    const nextDay = getNextSchoolDayBreak(schedule, todayIndex);
+    if(!nextDay) return null;
+
+    const first = nextDay.rows[0];
+    return {
+      next: {
+        ...first,
+        startSec: first.startMinutes * 60,
+        endSec: first.endMinutes * 60,
+        fallbackDay: DAYS[nextDay.dayIndex]
+      }
+    };
+  }
+
+  const fallbackA = (!stA_today.active && !stA_today.next) ? getFallback(schedule6A) : null;
+  const fallbackB = (!stB_today.active && !stB_today.next) ? getFallback(schedule6B) : null;
+
+
+  /* ---------------- SINGLE CLASS MODE ---------------- */
+
   if(mode==="6A" || mode==="6B"){
     combinedSec.style.display="none";
-    const st = mode==="6A"? stA : stB;
+    const stToday = mode==="6A" ? stA_today : stB_today;
+    const stTomorrow = mode==="6A" ? fallbackA : fallbackB;
 
-    if(st.active){
-      const left = st.active.endSec - nowSec;
-      const isLunch = st.active.type === "lunch";
+    if(stToday.active){
+      const left = stToday.active.endSec - nowSec;
+      const isLunch = stToday.active.type==="lunch";
 
       setState(
         left<=60 ? "state-ending" : (isLunch?"state-lunch":"state-break"),
-        isLunch ? "🍽️" : "⚽",
-        isLunch ? "LUNCH TIME!" : "BREAK TIME!",
+        isLunch?"🍽️":"⚽",
+        isLunch?"LUNCH TIME!":"BREAK TIME!",
         `${isLunch?"Lunch ends in:":"Break ends in:"} ${fmt(left)}`,
         "bounce"
       );
-
-      const last = mode==="6A"? lastEndA : lastEndB;
-      if(!last) mode==="6A"? lastEndA=st.active.endSec : lastEndB=st.active.endSec;
-      if(last===nowSec){
-        playBell(st.active.type);
-        mode==="6A"? lastEndA=null : lastEndB=null;
-      }
       return;
     }
 
-    if(st.next){
-      const until = st.next.startSec - nowSec;
-      const isLunch = st.next.type === "lunch";
+    if(stToday.next){
+      const until = stToday.next.startSec - nowSec;
+      const isLunch = stToday.next.type==="lunch";
 
       setState(
-        until<=300 ? "state-soon":"state-class",
-        isLunch ? "🍽️" : "🕒",
-        isLunch ? "LUNCH SOON" : "BREAK SOON",
+        until<=300?"state-soon":"state-class",
+        isLunch?"🍽️":"🕒",
+        isLunch?"LUNCH SOON":"BREAK SOON",
         `${isLunch?"Lunch starts in:":"Break starts in:"} ${fmt(until)}`,
         "pulse"
       );
       return;
     }
 
-    setState("state-class","🎒","Class Time","Next break unknown");
+    if(stTomorrow){
+      const label = stTomorrow.next.type==="lunch" ? "LUNCH (next school day)" : "BREAK (next school day)";
+      setState(
+        "state-class",
+        "🎒",
+        "Next School Day",
+        `${label} at ${stTomorrow.next.startLabel}`
+      );
+      return;
+    }
+
+    setState("state-class","🎒","Class Time","No breaks available");
     return;
   }
 
 
 
-  /* -------- COMBINED MODE -------- */
+  /* ---------------- COMBINED MODE ---------------- */
 
-  if(stA.active || stB.active){
+  /* Active break RIGHT NOW */
+  if(stA_today.active || stB_today.active){
     combinedSec.style.display="none";
 
-    let ch = stA.active, owner="6A";
-    if(stB.active && (!stA.active || stB.active.endSec < stA.active.endSec)){
-      ch=stB.active; owner="6B";
+    let ch = stA_today.active, owner="6A";
+    if(stB_today.active && (!stA_today.active || stB_today.active.endSec < stA_today.active.endSec)){
+      ch = stB_today.active; owner="6B";
     }
 
-    const left = ch.endSec-nowSec;
+    const left = ch.endSec - nowSec;
     const isLunch = ch.type==="lunch";
 
     setState(
-      left<=60 ? "state-ending" : (isLunch?"state-lunch":"state-break"),
-      isLunch ? "🍽️" : "⚽",
-      isLunch ? "LUNCH TIME!" : "BREAK TIME!",
+      left<=60?"state-ending":(isLunch?"state-lunch":"state-break"),
+      isLunch?"🍽️":"⚽",
+      isLunch?"LUNCH TIME!":"BREAK TIME!",
       `${isLunch?"Lunch ends in:":"Break ends in:"} ${fmt(left)}`,
       "bounce"
     );
 
-    const last = owner==="6A"? lastEndA : lastEndB;
-    if(!last) owner==="6A"? lastEndA=ch.endSec : lastEndB=ch.endSec;
-    if(last===nowSec){
-      playBell(ch.type);
-      owner==="6A"? lastEndA=null : lastEndB=null;
-    }
     return;
   }
 
 
-  /* -------- CLASS TIME WITH PREVIEW -------- */
-  combinedSec.style.display="block";
+  /* Next break today? */
+  const nA = stA_today.next;
+  const nB = stB_today.next;
 
-  const nA = stA.next;
-  const nB = stB.next;
+  if(nA || nB){
+    combinedSec.style.display="block";
 
-  const txtA = nA ? `${nA.type==="lunch"?"Lunch":"Break"} at ${nA.startLabel}` : "—";
-  const txtB = nB ? `${nB.type==="lunch"?"Lunch":"Break"} at ${nB.startLabel}` : "—";
+    const txtA = nA ? `${nA.type==="lunch"?"Lunch":"Break"} at ${nA.startLabel}` : "—";
+    const txtB = nB ? `${nB.type==="lunch"?"Lunch":"Break"} at ${nB.startLabel}` : "—";
 
-  combinedText.textContent = `6A next: ${txtA} • 6B next: ${txtB}`;
+    combinedText.textContent = `6A next: ${txtA} • 6B next: ${txtB}`;
 
-  setState("state-class","🎒","Class Time","Next breaks shown below");
+    setState("state-class","🎒","Class Time","Next breaks shown below");
 
-  barA.style.width = barFill(nA,nowSec);
-  barB.style.width = barFill(nB,nowSec);
+    barA.style.width = barFill(nA,nowSec);
+    barB.style.width = barFill(nB,nowSec);
+
+    return;
+  }
+
+
+  /* FALLBACK TO NEXT SCHOOL DAY FOR COMBINED MODE */
+
+  const nA_f = fallbackA ? fallbackA.next : null;
+  const nB_f = fallbackB ? fallbackB.next : null;
+
+  if(nA_f || nB_f){
+    combinedSec.style.display="block";
+
+    const txtA = nA_f ? `${nA_f.type==="lunch"?"Lunch":"Break"} at ${nA_f.startLabel} (${nA_f.fallbackDay})` : "—";
+    const txtB = nB_f ? `${nB_f.type==="lunch"?"Lunch":"Break"} at ${nB_f.startLabel} (${nB_f.fallbackDay})` : "—";
+
+    combinedText.textContent = `6A next: ${txtA} • 6B next: ${txtB}`;
+
+    setState("state-class","🎒","Next School Day","Break schedule below");
+
+    barA.style.width = "0%";
+    barB.style.width = "0%";
+
+    return;
+  }
+
+
+  /* Nothing at all */
+  combinedSec.style.display="none";
+  setState("state-class","🎒","Class Time","No breaks found");
 }
 
 
-/* -------- START LOOP -------- */
+/* ---------------- START ---------------- */
 (async()=>{
   await loadAll();
   update();
