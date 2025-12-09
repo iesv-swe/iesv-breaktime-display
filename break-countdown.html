@@ -6,17 +6,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
   <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
 
     :root {
       --bg-normal: linear-gradient(135deg, #071729, #0d2742);
       --bg-upcoming: linear-gradient(135deg, #004d40, #00796b);
       --bg-inbreak: linear-gradient(135deg, #1b5e20, #43a047);
       --bg-no-more: linear-gradient(135deg, #311b92, #512da8);
+
       --text-main: #ffffff;
       --text-muted: #cfd8dc;
     }
@@ -26,7 +23,7 @@
       height: 100vh;
       display: flex;
       flex-direction: column;
-      justify-content: space-between; /* Top menu + timer + bottom info */
+      justify-content: space-between;
       align-items: center;
       background: var(--bg-normal);
       color: var(--text-main);
@@ -37,10 +34,7 @@
     body.state-upcoming { background: var(--bg-upcoming); }
     body.state-inbreak { background: var(--bg-inbreak); }
     body.state-none { background: var(--bg-no-more); }
-
-    body.state-warning {
-      animation: flash-bg 1s ease-in-out infinite alternate;
-    }
+    body.state-warning { animation: flash-bg 1s ease-in-out infinite alternate; }
 
     @keyframes flash-bg {
       0% { filter: brightness(1); }
@@ -53,7 +47,7 @@
       max-width: 900px;
       padding: 10px;
       display: flex;
-      justify-content: space-between;
+      justify-content: flex-end;
       align-items: center;
       gap: 10px;
     }
@@ -70,7 +64,14 @@
 
     button:hover { background: rgba(255,255,255,0.15); }
 
-    /* ------------------ FULLSCREEN TIMER ------------------ */
+    /* Small bell icon button */
+    .icon-btn {
+      font-size: 1.2rem;
+      padding: 4px 8px;
+      line-height: 1;
+    }
+
+    /* ------------------ FULLSCREEN TIMER / CLOCK ------------------ */
     .timer-container {
       flex: 1;
       display: flex;
@@ -84,7 +85,7 @@
     #timerDisplay {
       font-weight: 700;
       font-variant-numeric: tabular-nums;
-      font-size: 18vw;      /* MASSIVE timer filling screen */
+      font-size: 18vw; /* HUGE fullscreen timer/clock */
       letter-spacing: 0.05em;
       text-shadow: 0 0 25px rgba(0,0,0,0.6);
       line-height: 1;
@@ -97,10 +98,7 @@
       padding-bottom: 10px;
     }
 
-    #statusText {
-      font-size: 1.3rem;
-      font-weight: 600;
-    }
+    #statusText { font-size: 1.3rem; font-weight: 600; }
 
     #statusDetail, #timerLabel {
       font-size: 0.9rem;
@@ -134,6 +132,9 @@
 
 <body>
 
+  <!-- 🔔 SCHOOL BELL AUDIO -->
+  <audio id="schoolBell" src="school_bell.mp3" preload="auto"></audio>
+
   <!-- ------------------ TOP MENU ------------------ -->
   <div class="top-controls">
     <select id="yearSelect">
@@ -144,9 +145,10 @@
 
     <button id="refreshButton">Reload</button>
     <button id="debugToggle">Debug</button>
+    <button id="testBellButton" class="icon-btn">🔔</button>
   </div>
 
-  <!-- ------------------ FULLSCREEN TIMER ------------------ -->
+  <!-- ------------------ FULLSCREEN TIMER / CLOCK ------------------ -->
   <div class="timer-container">
     <div id="timerDisplay">--:--</div>
   </div>
@@ -170,15 +172,19 @@
     const refreshButton = document.getElementById("refreshButton");
     const debugToggle = document.getElementById("debugToggle");
     const debugPanel = document.getElementById("debugPanel");
-    const downloadJsonButton = document.getElementById("downloadJsonButton");
     const scheduleJsonText = document.getElementById("scheduleJson");
+    const downloadJsonButton = document.getElementById("downloadJsonButton");
+    const testBellButton = document.getElementById("testBellButton");
 
     const statusText = document.getElementById("statusText");
     const statusDetail = document.getElementById("statusDetail");
     const timerDisplay = document.getElementById("timerDisplay");
     const timerLabel = document.getElementById("timerLabel");
 
+    const schoolBell = document.getElementById("schoolBell");
+
     let currentSchedule = null;
+    let lastBreakEnd = null;
 
     function getTodayAbbrev() {
       return ["Sun","Mon","Tue","Wed","Thur","Fri","Sat"][new Date().getDay()];
@@ -186,43 +192,69 @@
 
     async function loadSchedule() {
       const yearKey = yearSelect.value;
-
       statusText.textContent = "Loading schedule…";
-      document.body.className = "";
-
-      try {
-        currentSchedule = await getScheduleForYear(yearKey);
-        scheduleJsonText.value = JSON.stringify(currentSchedule, null, 2);
-        statusText.textContent = "Schedule loaded";
-      } catch (err) {
-        console.error(err);
-        statusText.textContent = "Error loading schedule";
-      }
+      currentSchedule = await getScheduleForYear(yearKey);
+      scheduleJsonText.value = JSON.stringify(currentSchedule, null, 2);
+      statusText.textContent = "Schedule loaded";
     }
 
-    function formatTime(seconds) {
+    /* ------------------ FORMATTERS ------------------ */
+    function formatClockHHMM(date) {
+      return (
+        String(date.getHours()).padStart(2,"0") + ":" +
+        String(date.getMinutes()).padStart(2,"0")
+      );
+    }
+
+    function formatCountdown(seconds) {
       if (seconds < 0) seconds = 0;
       const m = Math.floor(seconds / 60);
       const s = seconds % 60;
-      return `${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}`;
+      return `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
     }
 
-    function updateCountdown() {
-      const day = getTodayAbbrev();
-      const breaks = (currentSchedule?.breaksByDay?.[day]) || [];
-      const lessons = (currentSchedule?.lessonsByDay?.[day]) || [];
+    /* ------------------ BELL ------------------ */
+    function ringBell() {
+      schoolBell.currentTime = 0;
+      schoolBell.play();
+      setTimeout(() => schoolBell.pause(), 5000);
+    }
 
-      if (!breaks.length) {
-        document.body.className = "state-none";
-        statusText.textContent = "No breaks today";
-        timerDisplay.textContent = "--:--";
+    testBellButton.addEventListener("click", ringBell);
+
+    /* ------------------ MAIN LOGIC ------------------ */
+    function updateCountdown() {
+      const now = new Date();
+      const nowSeconds = now.getHours()*3600 + now.getMinutes()*60 + now.getSeconds();
+      const nowClock = formatClockHHMM(now);
+
+      const day = getTodayAbbrev();
+      const breaks = currentSchedule?.breaksByDay?.[day] || [];
+
+      const schoolOpen = 7*3600;
+      const schoolClose = 17.5*3600;
+
+      /* BEFORE SCHOOL */
+      if (nowSeconds < schoolOpen) {
+        timerDisplay.textContent = nowClock;
+        statusText.textContent = "School has not opened yet";
+        statusDetail.textContent = "Opens at 07:00";
         timerLabel.textContent = "";
+        document.body.className = "state-none";
         return;
       }
 
-      const now = new Date();
-      const nowSeconds = now.getHours()*3600 + now.getMinutes()*60 + now.getSeconds();
+      /* AFTER SCHOOL */
+      if (nowSeconds > schoolClose) {
+        timerDisplay.textContent = nowClock;
+        statusText.textContent = "School day finished";
+        statusDetail.textContent = "Closes at 17:30";
+        timerLabel.textContent = "";
+        document.body.className = "state-none";
+        return;
+      }
 
+      /* FIND BREAKS */
       let currentBreak = null;
       let nextBreak = null;
 
@@ -239,36 +271,58 @@
         }
       }
 
+      /* BREAK END DETECTION */
+      if (currentBreak) {
+        lastBreakEnd = currentBreak.endSec;
+      } else if (lastBreakEnd !== null && nowSeconds === lastBreakEnd) {
+        ringBell();
+        lastBreakEnd = null;
+      }
+
+      /* DURING BREAK */
       if (currentBreak) {
         const left = currentBreak.endSec - nowSeconds;
-        timerDisplay.textContent = formatTime(left);
+        timerDisplay.textContent = formatCountdown(left);
         timerLabel.textContent = "Time left in break";
         statusText.textContent = "IN BREAK";
-        statusDetail.textContent = `Ends ${currentBreak.endLabel} (${currentBreak.duration} min)`;
+        statusDetail.textContent = `Ends ${currentBreak.endLabel}`;
         document.body.className = left <= 60 ? "state-inbreak state-warning" : "state-inbreak";
         return;
       }
 
+      /* COUNTDOWN TO NEXT BREAK */
       if (nextBreak) {
         const until = nextBreak.startSec - nowSeconds;
-        timerDisplay.textContent = formatTime(until);
+
+        /* If more than 90 minutes away → show clock instead */
+        if (until > 90*60) {
+          timerDisplay.textContent = nowClock;
+          statusText.textContent = "Next break is later today";
+          statusDetail.textContent = `Starts ${nextBreak.startLabel}`;
+          timerLabel.textContent = "";
+          document.body.className = "state-none";
+          return;
+        }
+
+        /* Show countdown */
+        timerDisplay.textContent = formatCountdown(until);
         timerLabel.textContent = "Time until next break";
         statusText.textContent = "Next break coming up";
-        statusDetail.textContent = `Starts ${nextBreak.startLabel} (${nextBreak.duration} min)`;
+        statusDetail.textContent = `Starts ${nextBreak.startLabel}`;
         document.body.className = until <= 60 ? "state-upcoming state-warning" : "state-upcoming";
         return;
       }
 
-      document.body.className = "state-none";
+      /* NO MORE BREAKS TODAY */
+      timerDisplay.textContent = nowClock;
       statusText.textContent = "No more breaks today";
-      timerDisplay.textContent = "--:--";
+      timerLabel.textContent = "";
+      document.body.className = "state-none";
     }
 
+    /* ------------------ UI EVENTS ------------------ */
     debugToggle.addEventListener("click", () => {
       debugPanel.classList.toggle("visible");
-      debugToggle.textContent = debugPanel.classList.contains("visible")
-        ? "Hide Debug"
-        : "Debug";
     });
 
     downloadJsonButton.addEventListener("click", () => {
@@ -284,11 +338,13 @@
     yearSelect.addEventListener("change", loadSchedule);
     refreshButton.addEventListener("click", loadSchedule);
 
+    /* ------------------ INIT ------------------ */
     (async () => {
       await loadSchedule();
       updateCountdown();
       setInterval(updateCountdown, 1000);
     })();
   </script>
+
 </body>
 </html>
