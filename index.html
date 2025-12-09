@@ -9,17 +9,21 @@
 
 <body>
 
-<!-- SMALL CLOCK (top-right) -->
+<!-- SMALL CLOCK -->
 <div id="clockCorner">--:--</div>
 
-<!-- MAIN VISUAL AREA -->
-<div id="visualContainer">
+<!-- ICON CARD (always high) -->
+<div id="iconCard">
     <div id="iconArea">🎒</div>
+</div>
+
+<!-- MAIN TEXT CARD -->
+<div id="textCard">
     <div id="mainMessage">Class Time</div>
     <div id="subMessage">Next breaks shown below</div>
 </div>
 
-<!-- COMBINED SECTION (6A + 6B) -->
+<!-- COMBINED SECTION CARD -->
 <div id="combinedSection">
     <div id="combinedText">6A next: — • 6B next: —</div>
 
@@ -41,7 +45,6 @@
         <option value="6A">6A only</option>
         <option value="6B">6B only</option>
     </select>
-
     <button id="refreshBtn">Reload</button>
     <button id="debugToggle">Debug</button>
     <button id="testBell" class="iconBtn">🔔</button>
@@ -53,10 +56,10 @@
     <button id="downloadDebug">Download JSON</button>
 </div>
 
-<!-- BELL AUDIO -->
+<!-- BELL -->
 <audio id="bell" src="assets/school_bell.mp3" preload="auto"></audio>
 
-<!-- SCRIPTS -->
+<!-- JS -->
 <script src="js/parser.js"></script>
 <script src="js/app.js"></script>
 
