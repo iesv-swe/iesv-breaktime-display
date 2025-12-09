@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Break Display – IESV</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="stylesheet" href="css/styles.css">
+</head>
+
+<body>
+
+<!-- SMALL CLOCK (top-right) -->
+<div id="clockCorner"></div>
+
+<!-- MAIN VISUAL PANEL -->
+<div id="visualContainer">
+    <div id="iconArea">⚽</div>
+    <div id="mainMessage">BREAK TIME!</div>
+    <div id="subMessage">Ends in: 10:00</div>
+</div>
+
+<!-- YEAR 6 COMBINED SECTION -->
+<div id="combinedSection">
+    <div class="combinedText" id="combinedText"></div>
+
+    <div class="barRow">
+        <div class="barLabel">6A</div>
+        <div class="barOuter"><div class="barFillA"></div></div>
+    </div>
+
+    <div class="barRow">
+        <div class="barLabel">6B</div>
+        <div class="barOuter"><div class="barFillB"></div></div>
+    </div>
+</div>
+
+<!-- TOP CONTROLS -->
+<div id="controls">
+    <select id="yearSelect">
+        <option value="6" selected>Year 6 (6A & 6B)</option>
+        <option value="6A">6A only</option>
+        <option value="6B">6B only</option>
+    </select>
+
+    <button id="refreshBtn">Reload</button>
+    <button id="debugToggle">Debug</button>
+    <button id="testBell" class="iconBtn">🔔</button>
+</div>
+
+<!-- DEBUG PANEL -->
+<div id="debugPanel">
+    <textarea id="debugOutput"></textarea>
+    <button id="downloadDebug">Download JSON</button>
+</div>
+
+<!-- AUDIO -->
+<audio id="bell" src="assets/school_bell.mp3" preload="auto"></audio>
+
+<!-- SCRIPTS -->
+<script src="js/parser.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
