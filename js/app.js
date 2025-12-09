@@ -1,4 +1,4 @@
-// js/app.js — COMPLETE APPLICATION LOGIC
+// js/app.js — COMPLETE APPLICATION LOGIC (FIXED CALENDAR EMOJI)
 
 const DOM = {
   clock: document.getElementById('clock'),
@@ -381,7 +381,8 @@ function showUpcomingBreak(breakInfo, now) {
 function showNextDayBreak(nextDay) {
   setBodyState('state-class');
   
-  DOM.iconEmoji.textContent = '📅';
+  // Changed from 📅 to 🗓️ to avoid the "July 17" date display
+  DOM.iconEmoji.textContent = '🗓️';
   DOM.statusTitle.textContent = 'NO MORE BREAKS TODAY';
   
   var breakType = nextDay.firstBreak.type === 'lunch' ? 'Lunch' : 'Break';
