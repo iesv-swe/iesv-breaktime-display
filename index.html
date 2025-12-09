@@ -9,28 +9,28 @@
 
 <body>
 
-<!-- SMALL CLOCK -->
+<!-- SMALL CLOCK (top-right) -->
 <div id="clockCorner">--:--</div>
 
-<!-- MAIN VISUAL PANEL -->
+<!-- MAIN VISUAL AREA -->
 <div id="visualContainer">
     <div id="iconArea">🎒</div>
     <div id="mainMessage">Class Time</div>
-    <div id="subMessage"></div>
+    <div id="subMessage">Next breaks shown below</div>
 </div>
 
-<!-- YEAR 6 COMBINED SECTION -->
+<!-- COMBINED SECTION (6A + 6B) -->
 <div id="combinedSection">
-    <div class="combinedText" id="combinedText">Next breaks shown below</div>
+    <div id="combinedText">6A next: — • 6B next: —</div>
 
     <div class="barRow">
         <div class="barLabel">6A</div>
-        <div class="barOuter"><div class="barFillA"></div></div>
+        <div class="barOuter"><div class="barFill barFillA"></div></div>
     </div>
 
     <div class="barRow">
         <div class="barLabel">6B</div>
-        <div class="barOuter"><div class="barFillB"></div></div>
+        <div class="barOuter"><div class="barFill barFillB"></div></div>
     </div>
 </div>
 
@@ -53,10 +53,10 @@
     <button id="downloadDebug">Download JSON</button>
 </div>
 
-<!-- BELL -->
+<!-- BELL AUDIO -->
 <audio id="bell" src="assets/school_bell.mp3" preload="auto"></audio>
 
-<!-- APP SCRIPTS -->
+<!-- SCRIPTS -->
 <script src="js/parser.js"></script>
 <script src="js/app.js"></script>
 
