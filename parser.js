@@ -1,12 +1,11 @@
-// parser.js (FULL FILE with day-normalisation FIX)
-// -------------------------------------------------
+// parser.js — FINAL VERSION (only break rows, no gap detection)
 
 const LESSONS_FILE = "Lessons.txt";
 
 // PUBLIC API
 async function getScheduleForYear(yearKey) {
   const raw = await fetch(LESSONS_FILE).then(r => r.text());
-  return buildSchedule(raw, yearKey);
+  return buildBreakSchedule(raw, yearKey);
 }
 
 async function getYear6Schedule() {
@@ -17,21 +16,13 @@ window.getScheduleForYear = getScheduleForYear;
 window.getYear6Schedule = getYear6Schedule;
 
 
-// -------------------------------------------------
-// MAIN BUILDER
-// -------------------------------------------------
-
-function buildSchedule(text, yearKey) {
+// ----------------------------------------------
+// MAIN BREAK BUILDER
+// ----------------------------------------------
+function buildBreakSchedule(text, yearKey) {
   const lines = text.split(/\r?\n/);
 
-  // Canonical days
-  const dayLessons = {
-    Mon: [],
-    Tue: [],
-    Wed: [],
-    Thur: [],
-    Fri: []
-  };
+  const dayMap = { Mon: [], Tue: [], Wed: [], Thur: [], Fri: [] };
 
   for (const rawLine of lines) {
     if (!rawLine.trim()) continue;
@@ -48,79 +39,69 @@ function buildSchedule(text, yearKey) {
     const durationStr = (cols[4] || "").trim();
     const classField = (cols[6] || "").trim();
 
-    // NORMALISE DAY STRING HERE (FIX)
+    // NORMALISE DAY
     const day = normalizeDay(rawDay);
-    if (!day) continue; // skip unknown day
+    if (!day) continue;
 
-    // Skip explicit Break/Rast rows
+    // IDENTIFY BREAK TYPES
     const low = title.toLowerCase();
-    if (low.includes("break") || low.includes("rast")) continue;
+    let type = null;
 
-    if (!/^[0-2][0-9][0-5][0-9]$/.test(startStr)) continue;
-
-    const duration = parseInt(durationStr, 10);
-    if (!Number.isFinite(duration) || duration < 1) continue;
+    if (low.includes("passing time")) type = "passing";
+    else if (low.includes("break senior")) type = "senior";
+    else if (low.includes("lunch")) type = "lunch";
+    else continue; // ignore all others
 
     const tokens = normalizeTokens(classField);
     if (!matchesYear(tokens, yearKey)) continue;
 
+    if (!/^[0-2][0-9][0-5][0-9]$/.test(startStr)) continue;
+    const duration = parseInt(durationStr, 10);
+    if (!Number.isFinite(duration) || duration < 1) continue;
+
     const startMin = hhmmToMinutes(startStr);
     const endMin = startMin + duration;
 
-    dayLessons[day].push({
+    dayMap[day].push({
       day,
+      type,              // "passing", "senior", "lunch"
       startMinutes: startMin,
       endMinutes: endMin,
       duration,
       startLabel: minutesToHHMM(startMin),
-      endLabel: minutesToHHMM(endMin),
-      tokens,
-      title
+      endLabel: minutesToHHMM(endMin)
     });
   }
 
-  // Sort lessons per day
-  for (const d of Object.keys(dayLessons)) {
-    dayLessons[d].sort((a, b) => a.startMinutes - b.startMinutes);
+  // Sort by time
+  for (const d of Object.keys(dayMap)) {
+    dayMap[d].sort((a, b) => a.startMinutes - b.startMinutes);
   }
 
-  // Build breaks per day
-  const breaksByDay = {};
-  for (const d of Object.keys(dayLessons)) {
-    breaksByDay[d] = computeBreaks(dayLessons[d]);
-  }
-
-  return { lessonsByDay: dayLessons, breaksByDay };
+  return { breaksByDay: dayMap };
 }
 
 
-// -------------------------------------------------
-// NORMALISE DAY NAMES  (THE FIX)
-// -------------------------------------------------
-
+// ----------------------------------------------
+// NORMALISE DAY
+// ----------------------------------------------
 function normalizeDay(raw) {
   if (!raw) return null;
-
   const d = raw.trim().toLowerCase();
 
-  if (d === "mon" || d === "mån" || d === "monday") return "Mon";
-  if (d === "tue" || d === "tis" || d === "tuesday") return "Tue";
-  if (d === "wed" || d === "ons" || d === "wednesday") return "Wed";
+  if (d === "mon" || d === "mån") return "Mon";
+  if (d === "tue" || d === "tis") return "Tue";
+  if (d === "wed" || d === "ons") return "Wed";
+  if (d === "thu" || d === "thur" || d === "tor" || d === "tors") return "Thur";
+  if (d === "fri" || d === "fre") return "Fri";
 
-  // Your file uses "Thur" exactly – include tolerance:
-  if (d === "thur" || d === "thu" || d === "tors" || d === "tor") return "Thur";
-
-  if (d === "fri" || d === "fre" || d === "friday") return "Fri";
-
-  // Unknown day → skip line
   return null;
 }
 
 
-// -------------------------------------------------
-// CLASS TOKEN LOGIC
-// -------------------------------------------------
-
+// ----------------------------------------------
+// CLASS TOKENS
+// ----------------------------------------------
 function normalizeTokens(field) {
   return field
     .split(/[^A-Za-z0-9:]+/)
@@ -130,7 +111,7 @@ function normalizeTokens(field) {
 
 function tokenIsGroup(t, base) {
   if (t === base) return true;
-  if (t.startsWith(base + ":")) return true; 
+  if (t.startsWith(base + ":")) return true;
   return false;
 }
 
@@ -138,49 +119,16 @@ function matchesYear(tokens, yearKey) {
   if (yearKey === "6") {
     return tokens.some(t => tokenIsGroup(t, "6A") || tokenIsGroup(t, "6B"));
   }
-
   if (yearKey === "6A" || yearKey === "6B") {
     return tokens.some(t => tokenIsGroup(t, yearKey));
   }
-
   return false;
 }
 
 
-// -------------------------------------------------
-// BREAK COMPUTATION
-// -------------------------------------------------
-
-function computeBreaks(lessons) {
-  const out = [];
-  if (!lessons.length) return out;
-
-  for (let i = 0; i < lessons.length - 1; i++) {
-    const a = lessons[i];
-    const b = lessons[i + 1];
-
-    if (b.startMinutes > a.endMinutes) {
-      const gap = b.startMinutes - a.endMinutes;
-      if (gap >= 5) {
-        out.push({
-          day: a.day,
-          startMinutes: a.endMinutes,
-          endMinutes: b.startMinutes,
-          duration: gap,
-          startLabel: minutesToHHMM(a.endMinutes),
-          endLabel: minutesToHHMM(b.startMinutes)
-        });
-      }
-    }
-  }
-  return out;
-}
-
-
-// -------------------------------------------------
+// ----------------------------------------------
 // TIME HELPERS
-// -------------------------------------------------
-
+// ----------------------------------------------
 function hhmmToMinutes(hhmm) {
   const hh = parseInt(hhmm.slice(0,2), 10);
   const mm = parseInt(hhmm.slice(2,4), 10);
@@ -188,7 +136,7 @@ function hhmmToMinutes(hhmm) {
 }
 
 function minutesToHHMM(mins) {
-  const hh = String(Math.floor(mins/60)).padStart(2,"0");
-  const mm = String(mins % 60).padStart(2,"0");
+  const hh = String(Math.floor(mins / 60)).padStart(2, "0");
+  const mm = String(mins % 60).padStart(2, "0");
   return `${hh}:${mm}`;
 }
