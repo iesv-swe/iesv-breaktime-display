@@ -1,279 +1,464 @@
-// app.js — FULL VERSION WITH B2 "NEXT SCHOOL DAY LOOKAHEAD"
+// js/app.js — COMPLETE REWRITE
 
-const iconArea     = document.getElementById("iconArea");
-const mainMessage  = document.getElementById("mainMessage");
-const subMessage   = document.getElementById("subMessage");
-const clockCorner  = document.getElementById("clockCorner");
-const combinedSec  = document.getElementById("combinedSection");
-const combinedText = document.getElementById("combinedText");
-const barA         = document.querySelector(".barFillA");
-const barB         = document.querySelector(".barFillB");
+const DOM = {
+  clock: document.getElementById('clock'),
+  dayName: document.getElementById('dayName'),
+  iconEmoji: document.getElementById('iconEmoji'),
+  statusTitle: document.getElementById('statusTitle'),
+  statusSubtitle: document.getElementById('statusSubtitle'),
+  countMin: document.getElementById('countMin'),
+  countSec: document.getElementById('countSec'),
+  countdown: document.getElementById('countdown'),
+  progressContainer: document.getElementById('progressContainer'),
+  progressFill: document.querySelector('.progressFill'),
+  progressLabel: document.getElementById('progressLabel'),
+  classPanels: document.getElementById('classPanels'),
+  card6A: document.getElementById('card6A'),
+  card6B: document.getElementById('card6B'),
+  status6A: document.getElementById('status6A'),
+  status6B: document.getElementById('status6B'),
+  next6A: document.getElementById('next6A'),
+  next6B: document.getElementById('next6B'),
+  bar6A: document.getElementById('bar6A'),
+  bar6B: document.getElementById('bar6B'),
+  alertBanner: document.getElementById('alertBanner'),
+  alertText: document.getElementById('alertText'),
+  yearSelect: document.getElementById('yearSelect'),
+  soundEnabled: document.getElementById('soundEnabled'),
+  settingsToggle: document.getElementById('settingsToggle'),
+  settingsPanel: document.getElementById('settingsPanel'),
+  testSound: document.getElementById('testSound'),
+  reloadData: document.getElementById('reloadData'),
+  alertSound: document.getElementById('alertSound')
+};
 
-const yearSelect   = document.getElementById("yearSelect");
-const refreshBtn   = document.getElementById("refreshBtn");
-const debugToggle  = document.getElementById("debugToggle");
-const debugPanel   = document.getElementById("debugPanel");
-const debugOutput  = document.getElementById("debugOutput");
-const testBell     = document.getElementById("testBell");
-
-const bell         = document.getElementById("bell");
+const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thur', 'Fri', 'Sat'];
+const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
 let schedule6A = null;
 let schedule6B = null;
+let lastAlertTime = 0;
+let currentState = null;
 
-let lastEndA = null;
-let lastEndB = null;
+/* ==================== INITIALIZATION ==================== */
 
-const SCHOOL_OPEN  = 7 * 3600;
-const SCHOOL_CLOSE = 17.5 * 3600;
+async function init() {
+  await loadSchedules();
+  setupEventListeners();
+  update();
+  setInterval(update, 1000);
+}
 
-const DAYS = ["Sun","Mon","Tue","Wed","Thur","Fri","Sat"];
+async function loadSchedules() {
+  try {
+    schedule6A = await getScheduleForYear('6A');
+    schedule6B = await getScheduleForYear('6B');
+    console.log('📅 Schedules loaded:', { schedule6A, schedule6B });
+  } catch (err) {
+    console.error('Failed to load schedules:', err);
+    showError('Could not load schedule data');
+  }
+}
 
+function setupEventListeners() {
+  DOM.settingsToggle.addEventListener('click', () => {
+    DOM.settingsPanel.classList.toggle('hidden');
+  });
+  
+  DOM.testSound.addEventListener('click', () => playAlert());
+  DOM.reloadData.addEventListener('click', () => loadSchedules());
+  DOM.yearSelect.addEventListener('change', update);
+  
+  // Close settings when clicking outside
+  document.addEventListener('click', (e) => {
+    if (!DOM.settingsPanel.contains(e.target) && 
+        !DOM.settingsToggle.contains(e.target)) {
+      DOM.settingsPanel.classList.add('hidden');
+    }
+  });
+}
 
-/* ---------------- HELPERS ---------------- */
+/* ==================== TIME UTILITIES ==================== */
 
-function nowClock(){
+function getNow() {
   const d = new Date();
-  return `${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;
+  return {
+    date: d,
+    hours: d.getHours(),
+    minutes: d.getMinutes(),
+    seconds: d.getSeconds(),
+    totalSeconds: d.getHours() * 3600 + d.getMinutes() * 60 + d.getSeconds(),
+    dayIndex: d.getDay(),
+    dayName: DAYS[d.getDay()],
+    dayFullName: DAY_NAMES[d.getDay()]
+  };
 }
 
-function fmt(sec){
-  if(sec < 0) sec = 0;
-  const m=Math.floor(sec/60), s=sec%60;
-  return `${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}`;
+function formatTime(totalSeconds) {
+  const mins = Math.floor(totalSeconds / 60);
+  const secs = totalSeconds % 60;
+  return {
+    mins: String(Math.max(0, mins)).padStart(2, '0'),
+    secs: String(Math.max(0, secs)).padStart(2, '0'),
+    display: `${Math.max(0, mins)}:${String(Math.max(0, secs)).padStart(2, '0')}`
+  };
 }
 
-function getBreakState(schedule, nowSec, day){
+function formatClock(hours, minutes) {
+  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+}
+
+/* ==================== BREAK STATE LOGIC ==================== */
+
+function getBreakState(schedule, nowSec, day) {
+  if (!schedule) return { active: null, next: null };
+  
   const rows = schedule.breaksByDay[day] || [];
-  let active=null, next=null;
+  let active = null;
+  let next = null;
 
-  for(const b of rows){
-    const s=b.startMinutes*60, e=b.endMinutes*60;
-    if(nowSec>=s && nowSec<e)
-      active={...b,startSec:s,endSec:e};
-    else if(nowSec<s && !next)
-      next={...b,startSec:s,endSec:e};
+  for (const b of rows) {
+    const startSec = b.startMinutes * 60;
+    const endSec = b.endMinutes * 60;
+    
+    if (nowSec >= startSec && nowSec < endSec) {
+      active = { ...b, startSec, endSec };
+    } else if (nowSec < startSec && !next) {
+      next = { ...b, startSec, endSec };
+    }
   }
-  return {active,next};
+  
+  return { active, next };
 }
 
-function barFill(next, now){
-  if(!next) return "0%";
-  const until = next.startSec - now;
-  return (Math.max(0, Math.min(1, 1 - until / 5400)) * 100) + "%";
-}
-
-
-/* -------------- NEXT SCHOOL DAY LOGIC (B2) -------------- */
-
-function getNextSchoolDayBreak(schedule, currentDayIndex){
-  let dayIndex = currentDayIndex;
-
-  for(let i=0;i<7;i++){
-    dayIndex = (dayIndex + 1) % 7;
-    const dName = DAYS[dayIndex];
-
-    if(dName === "Sat" || dName === "Sun") continue;
-
-    const rows = schedule.breaksByDay[dName] || [];
-    if(rows.length > 0) return { dayIndex, rows };
+function getNextSchoolDayBreak(schedule, currentDayIndex) {
+  if (!schedule) return null;
+  
+  for (let i = 1; i <= 7; i++) {
+    const dayIndex = (currentDayIndex + i) % 7;
+    const dayName = DAYS[dayIndex];
+    
+    if (dayName === 'Sat' || dayName === 'Sun') continue;
+    
+    const rows = schedule.breaksByDay[dayName] || [];
+    if (rows.length > 0) {
+      return {
+        dayIndex,
+        dayName,
+        dayFullName: DAY_NAMES[dayIndex],
+        firstBreak: rows[0]
+      };
+    }
   }
-
+  
   return null;
 }
 
+/* ==================== UI UPDATE ==================== */
 
-/* ---------------- STATE SETTER ---------------- */
-
-function setState(bgClass, icon, main, sub, anim=null){
-  document.body.className = bgClass;
-  iconArea.textContent = icon;
-  mainMessage.textContent = main;
-  subMessage.textContent = sub;
-  iconArea.style.animationName = anim ? anim : "none";
+function update() {
+  const now = getNow();
+  
+  // Update clock
+  DOM.clock.textContent = formatClock(now.hours, now.minutes);
+  DOM.dayName.textContent = now.dayFullName;
+  
+  const mode = DOM.yearSelect.value;
+  
+  // Get states for both classes
+  const stateA = getBreakState(schedule6A, now.totalSeconds, now.dayName);
+  const stateB = getBreakState(schedule6B, now.totalSeconds, now.dayName);
+  
+  // Update class panels
+  updateClassPanel('A', stateA, now);
+  updateClassPanel('B', stateB, now);
+  
+  // Determine main display state
+  if (mode === '6A') {
+    updateMainDisplay(stateA, now, '6A');
+    DOM.card6B.style.opacity = '0.4';
+    DOM.card6A.style.opacity = '1';
+  } else if (mode === '6B') {
+    updateMainDisplay(stateB, now, '6B');
+    DOM.card6A.style.opacity = '0.4';
+    DOM.card6B.style.opacity = '1';
+  } else {
+    // Combined mode - show most urgent
+    DOM.card6A.style.opacity = '1';
+    DOM.card6B.style.opacity = '1';
+    updateMainDisplayCombined(stateA, stateB, now);
+  }
 }
 
-
-/* ---------------- MAIN LOOP ---------------- */
-
-async function loadAll(){
-  schedule6A = await getScheduleForYear("6A");
-  schedule6B = await getScheduleForYear("6B");
-  debugOutput.value = JSON.stringify({schedule6A,schedule6B},null,2);
+function updateClassPanel(suffix, state, now) {
+  const statusEl = DOM[`status6${suffix}`];
+  const nextEl = DOM[`next6${suffix}`];
+  const barEl = DOM[`bar6${suffix}`];
+  const cardEl = DOM[`card6${suffix}`];
+  
+  cardEl.classList.remove('active', 'active-lunch');
+  statusEl.classList.remove('on-break', 'on-lunch');
+  
+  if (state.active) {
+    const isLunch = state.active.type === 'lunch';
+    const remaining = state.active.endSec - now.totalSeconds;
+    const time = formatTime(remaining);
+    
+    statusEl.textContent = isLunch ? '🍽️ LUNCH' : '⚽ BREAK';
+    statusEl.classList.add(isLunch ? 'on-lunch' : 'on-break');
+    cardEl.classList.add(isLunch ? 'active-lunch' : 'active');
+    nextEl.textContent = `Ends in ${time.display}`;
+    
+    // Progress bar shows time elapsed
+    const total = state.active.endSec - state.active.startSec;
+    const elapsed = now.totalSeconds - state.active.startSec;
+    barEl.style.width = `${(elapsed / total) * 100}%`;
+    
+  } else if (state.next) {
+    const until = state.next.startSec - now.totalSeconds;
+    const isLunch = state.next.type === 'lunch';
+    
+    statusEl.textContent = 'In Class';
+    nextEl.textContent = `${isLunch ? 'Lunch' : 'Break'} at ${state.next.startLabel}`;
+    
+    // Progress towards next break (last 90 mins)
+    const progress = Math.max(0, Math.min(1, 1 - until / 5400));
+    barEl.style.width = `${progress * 100}%`;
+    
+  } else {
+    statusEl.textContent = 'No breaks';
+    nextEl.textContent = 'Check tomorrow';
+    barEl.style.width = '0%';
+  }
 }
 
-refreshBtn.onclick = loadAll;
-testBell.onclick = ()=> bell.play();
-debugToggle.onclick = ()=> debugPanel.style.display =
-  debugPanel.style.display==="block" ? "none" : "block";
-yearSelect.onchange = loadAll;
-
-
-function update(){
-  const now = new Date();
-  const nowSec = now.getHours()*3600 + now.getMinutes()*60 + now.getSeconds();
-  const todayIndex = now.getDay();
-  const today = DAYS[todayIndex];
-
-  clockCorner.textContent = nowClock();
-
-  const stA_today = getBreakState(schedule6A, nowSec, today);
-  const stB_today = getBreakState(schedule6B, nowSec, today);
-
-  const mode = yearSelect.value;
-
-
-  /* -------- IF TODAY HAS NO BREAKS LEFT, LOOK AHEAD (B2) -------- */
-
-  function getFallback(schedule){
-    const nextDay = getNextSchoolDayBreak(schedule, todayIndex);
-    if(!nextDay) return null;
-
-    const first = nextDay.rows[0];
-    return {
-      next: {
-        ...first,
-        startSec: first.startMinutes * 60,
-        endSec: first.endMinutes * 60,
-        fallbackDay: DAYS[nextDay.dayIndex]
-      }
-    };
-  }
-
-  const fallbackA = (!stA_today.active && !stA_today.next) ? getFallback(schedule6A) : null;
-  const fallbackB = (!stB_today.active && !stB_today.next) ? getFallback(schedule6B) : null;
-
-
-  /* ---------------- SINGLE CLASS MODE ---------------- */
-
-  if(mode==="6A" || mode==="6B"){
-    combinedSec.style.display="none";
-    const stToday = mode==="6A" ? stA_today : stB_today;
-    const stTomorrow = mode==="6A" ? fallbackA : fallbackB;
-
-    if(stToday.active){
-      const left = stToday.active.endSec - nowSec;
-      const isLunch = stToday.active.type==="lunch";
-
-      setState(
-        left<=60 ? "state-ending" : (isLunch?"state-lunch":"state-break"),
-        isLunch?"🍽️":"⚽",
-        isLunch?"LUNCH TIME!":"BREAK TIME!",
-        `${isLunch?"Lunch ends in:":"Break ends in:"} ${fmt(left)}`,
-        "bounce"
-      );
-      return;
+function updateMainDisplay(state, now, className) {
+  const schedule = className === '6A' ? schedule6A : schedule6B;
+  
+  if (state.active) {
+    showActiveBreak(state.active, now);
+  } else if (state.next) {
+    showUpcomingBreak(state.next, now);
+  } else {
+    // Look to next school day
+    const nextDay = getNextSchoolDayBreak(schedule, now.dayIndex);
+    if (nextDay) {
+      showNextDayBreak(nextDay);
+    } else {
+      showNoBreaks();
     }
-
-    if(stToday.next){
-      const until = stToday.next.startSec - nowSec;
-      const isLunch = stToday.next.type==="lunch";
-
-      setState(
-        until<=300?"state-soon":"state-class",
-        isLunch?"🍽️":"🕒",
-        isLunch?"LUNCH SOON":"BREAK SOON",
-        `${isLunch?"Lunch starts in:":"Break starts in:"} ${fmt(until)}`,
-        "pulse"
-      );
-      return;
-    }
-
-    if(stTomorrow){
-      const label = stTomorrow.next.type==="lunch" ? "LUNCH (next school day)" : "BREAK (next school day)";
-      setState(
-        "state-class",
-        "🎒",
-        "Next School Day",
-        `${label} at ${stTomorrow.next.startLabel}`
-      );
-      return;
-    }
-
-    setState("state-class","🎒","Class Time","No breaks available");
-    return;
   }
-
-
-
-  /* ---------------- COMBINED MODE ---------------- */
-
-  /* Active break RIGHT NOW */
-  if(stA_today.active || stB_today.active){
-    combinedSec.style.display="none";
-
-    let ch = stA_today.active, owner="6A";
-    if(stB_today.active && (!stA_today.active || stB_today.active.endSec < stA_today.active.endSec)){
-      ch = stB_today.active; owner="6B";
-    }
-
-    const left = ch.endSec - nowSec;
-    const isLunch = ch.type==="lunch";
-
-    setState(
-      left<=60?"state-ending":(isLunch?"state-lunch":"state-break"),
-      isLunch?"🍽️":"⚽",
-      isLunch?"LUNCH TIME!":"BREAK TIME!",
-      `${isLunch?"Lunch ends in:":"Break ends in:"} ${fmt(left)}`,
-      "bounce"
-    );
-
-    return;
-  }
-
-
-  /* Next break today? */
-  const nA = stA_today.next;
-  const nB = stB_today.next;
-
-  if(nA || nB){
-    combinedSec.style.display="block";
-
-    const txtA = nA ? `${nA.type==="lunch"?"Lunch":"Break"} at ${nA.startLabel}` : "—";
-    const txtB = nB ? `${nB.type==="lunch"?"Lunch":"Break"} at ${nB.startLabel}` : "—";
-
-    combinedText.textContent = `6A next: ${txtA} • 6B next: ${txtB}`;
-
-    setState("state-class","🎒","Class Time","Next breaks shown below");
-
-    barA.style.width = barFill(nA,nowSec);
-    barB.style.width = barFill(nB,nowSec);
-
-    return;
-  }
-
-
-  /* FALLBACK TO NEXT SCHOOL DAY FOR COMBINED MODE */
-
-  const nA_f = fallbackA ? fallbackA.next : null;
-  const nB_f = fallbackB ? fallbackB.next : null;
-
-  if(nA_f || nB_f){
-    combinedSec.style.display="block";
-
-    const txtA = nA_f ? `${nA_f.type==="lunch"?"Lunch":"Break"} at ${nA_f.startLabel} (${nA_f.fallbackDay})` : "—";
-    const txtB = nB_f ? `${nB_f.type==="lunch"?"Lunch":"Break"} at ${nB_f.startLabel} (${nB_f.fallbackDay})` : "—";
-
-    combinedText.textContent = `6A next: ${txtA} • 6B next: ${txtB}`;
-
-    setState("state-class","🎒","Next School Day","Break schedule below");
-
-    barA.style.width = "0%";
-    barB.style.width = "0%";
-
-    return;
-  }
-
-
-  /* Nothing at all */
-  combinedSec.style.display="none";
-  setState("state-class","🎒","Class Time","No breaks found");
 }
 
+function updateMainDisplayCombined(stateA, stateB, now) {
+  // Priority: Active break > Upcoming break > Next day
+  const activeA = stateA.active;
+  const activeB = stateB.active;
+  
+  // If any break is active, show the one ending soonest
+  if (activeA || activeB) {
+    let chosen = activeA;
+    if (activeB && (!activeA || activeB.endSec < activeA.endSec)) {
+      chosen = activeB;
+    }
+    showActiveBreak(chosen, now);
+    return;
+  }
+  
+  // Show upcoming breaks
+  const nextA = stateA.next;
+  const nextB = stateB.next;
+  
+  if (nextA || nextB) {
+    // Show the one coming soonest
+    let chosen = nextA;
+    if (nextB && (!nextA || nextB.startSec < nextA.startSec)) {
+      chosen = nextB;
+    }
+    showUpcomingBreak(chosen, now);
+    return;
+  }
+  
+  // Look to next school day
+  const nextDayA = getNextSchoolDayBreak(schedule6A, now.dayIndex);
+  const nextDayB = getNextSchoolDayBreak(schedule6B, now.dayIndex);
+  
+  if (nextDayA || nextDayB) {
+    showNextDayBreak(nextDayA || nextDayB);
+  } else {
+    showNoBreaks();
+  }
+}
 
-/* ---------------- START ---------------- */
-(async()=>{
-  await loadAll();
-  update();
-  setInterval(update,1000);
-})();
+/* ==================== STATE DISPLAYS ==================== */
+
+function showActiveBreak(breakInfo, now) {
+  const isLunch = breakInfo.type === 'lunch';
+  const remaining = breakInfo.endSec - now.totalSeconds;
+  const total = breakInfo.endSec - breakInfo.startSec;
+  const elapsed = now.totalSeconds - breakInfo.startSec;
+  const progress = elapsed / total;
+  const time = formatTime(remaining);
+  
+  // Determine urgency
+  const isEnding = remaining <= 60;
+  const isWarning = remaining <= 180 && remaining > 60;
+  
+  // Set state
+  let stateClass = isLunch ? 'state-lunch' : 'state-break';
+  if (isEnding) stateClass = 'state-warning';
+  
+  setBodyState(stateClass);
+  
+  // Update display
+  DOM.iconEmoji.textContent = isLunch ? '🍽️' : '⚽';
+  DOM.statusTitle.textContent = isLunch ? 'LUNCH TIME' : 'BREAK TIME';
+  
+  if (isEnding) {
+    DOM.statusSubtitle.textContent = '⚠️ GET BACK TO CLASS!';
+    triggerAlert('Break ending! Return to class NOW!');
+  } else if (isWarning) {
+    DOM.statusSubtitle.textContent = 'Start heading back soon...';
+    triggerAlert('Break ending in 3 minutes!', false);
+  } else {
+    DOM.statusSubtitle.textContent = `Ends at ${breakInfo.endLabel}`;
+  }
+  
+  // Countdown
+  DOM.countdown.style.display = 'flex';
+  DOM.countMin.textContent = time.mins;
+  DOM.countSec.textContent = time.secs;
+  
+  // Progress ring
+  DOM.progressContainer.classList.add('visible');
+  const circumference = 2 * Math.PI * 90;
+  const offset = circumference * (1 - progress);
+  DOM.progressFill.style.strokeDashoffset = offset;
+  DOM.progressLabel.textContent = `${Math.round(progress * 100)}%`;
+}
+
+function showUpcomingBreak(breakInfo, now) {
+  const isLunch = breakInfo.type === 'lunch';
+  const until = breakInfo.startSec - now.totalSeconds;
+  const time = formatTime(until);
+  
+  const isSoon = until <= 300; // 5 minutes
+  
+  setBodyState(isSoon ? 'state-soon' : 'state-class');
+  
+  DOM.iconEmoji.textContent = isSoon ? '🎉' : '📚';
+  DOM.statusTitle.textContent = isSoon 
+    ? `${isLunch ? 'LUNCH' : 'BREAK'} SOON!` 
+    : 'CLASS TIME';
+  DOM.statusSubtitle.textContent = `${isLunch ? 'Lunch' : 'Break'} starts at ${breakInfo.startLabel}`;
+  
+  // Countdown to start
+  DOM.countdown.style.display = 'flex';
+  DOM.countMin.textContent = time.mins;
+  DOM.countSec.textContent = time.secs;
+  
+  // Hide progress ring during class
+  DOM.progressContainer.classList.remove('visible');
+}
+
+function showNextDayBreak(nextDay) {
+  setBodyState('state-class');
+  
+  DOM.iconEmoji.textContent = '📅';
+  DOM.statusTitle.textContent = 'NO MORE BREAKS TODAY';
+  
+  const breakType = nextDay.firstBreak.type === 'lunch' ? 'Lunch' : 'Break';
+  DOM.statusSubtitle.textContent = 
+    `Next: ${breakType} on ${nextDay.dayFullName} at ${nextDay.firstBreak.startLabel}`;
+  
+  DOM.countdown.style.display = 'none';
+  DOM.progressContainer.classList.remove('visible');
+}
+
+function showNoBreaks() {
+  setBodyState('state-class');
+  
+  DOM.iconEmoji.textContent = '🎒';
+  DOM.statusTitle.textContent = 'NO BREAKS SCHEDULED';
+  DOM.statusSubtitle.textContent = 'Check back later';
+  
+  DOM.countdown.style.display = 'none';
+  DOM.progressContainer.classList.remove('visible');
+}
+
+function showError(message) {
+  setBodyState('state-warning');
+  
+  DOM.iconEmoji.textContent = '⚠️';
+  DOM.statusTitle.textContent = 'ERROR';
+  DOM.statusSubtitle.textContent = message;
+  
+  DOM.countdown.style.display = 'none';
+  DOM.progressContainer.classList.remove('visible');
+}
+
+/* ==================== UTILITIES ==================== */
+
+function setBodyState(stateClass) {
+  if (currentState === stateClass) return;
+  
+  document.body.className = stateClass;
+  currentState = stateClass;
+}
+
+function triggerAlert(message, critical = true) {
+  const now = Date.now();
+  
+  // Don't spam alerts (minimum 30 seconds between)
+  if (now - lastAlertTime < 30000) return;
+  
+  DOM.alertText.textContent = message;
+  DOM.alertBanner.classList.remove('hidden');
+  DOM.alertBanner.classList.add('visible');
+  
+  if (DOM.soundEnabled.checked) {
+    playAlert();
+  }
+  
+  lastAlertTime = now;
+  
+  // Hide after 10 seconds
+  setTimeout(() => {
+    DOM.alertBanner.classList.remove('visible');
+    DOM.alertBanner.classList.add('hidden');
+  }, critical ? 10000 : 5000);
+}
+
+function playAlert() {
+  // Create oscillator for attention-getting sound
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    
+    // Play a two-tone alert
+    [440, 554.37, 659.25].forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      
+      osc.frequency.value = freq;
+      osc.type = 'sine';
+      
+      gain.gain.setValueAtTime(0.3, ctx.currentTime + i * 0.15);
+      gain.gain.exponentialDecayTo = 0.01;
+      gain.gain.setValueAtTime(0.01, ctx.currentTime + i * 0.15 + 0.14);
+      
+      osc.start(ctx.currentTime + i * 0.15);
+      osc.stop(ctx.currentTime + i * 0.15 + 0.15);
+    });
+  } catch (e) {
+    // Fallback to audio element
+    DOM.alertSound.currentTime = 0;
+    DOM.alertSound.play().catch(() => {});
+  }
+}
+
+/* ==================== START ==================== */
+
+document.addEventListener('DOMContentLoaded', init);
