@@ -64,7 +64,6 @@
 
     button:hover { background: rgba(255,255,255,0.15); }
 
-    /* Small bell icon button */
     .icon-btn {
       font-size: 1.2rem;
       padding: 4px 8px;
@@ -85,7 +84,7 @@
     #timerDisplay {
       font-weight: 700;
       font-variant-numeric: tabular-nums;
-      font-size: 18vw; /* HUGE fullscreen timer/clock */
+      font-size: 18vw;
       letter-spacing: 0.05em;
       text-shadow: 0 0 25px rgba(0,0,0,0.6);
       line-height: 1;
@@ -132,7 +131,7 @@
 
 <body>
 
-  <!-- 🔔 SCHOOL BELL AUDIO -->
+  <!-- 🔔 SCHOOL BELL AUDIO (make sure school_bell.mp3 sits next to this HTML) -->
   <audio id="schoolBell" src="school_bell.mp3" preload="auto"></audio>
 
   <!-- ------------------ TOP MENU ------------------ -->
@@ -145,7 +144,7 @@
 
     <button id="refreshButton">Reload</button>
     <button id="debugToggle">Debug</button>
-    <button id="testBellButton" class="icon-btn">🔔</button>
+    <button id="testBellButton" class="icon-btn" title="Test bell">🔔</button>
   </div>
 
   <!-- ------------------ FULLSCREEN TIMER / CLOCK ------------------ -->
@@ -193,9 +192,14 @@
     async function loadSchedule() {
       const yearKey = yearSelect.value;
       statusText.textContent = "Loading schedule…";
-      currentSchedule = await getScheduleForYear(yearKey);
-      scheduleJsonText.value = JSON.stringify(currentSchedule, null, 2);
-      statusText.textContent = "Schedule loaded";
+      try {
+        currentSchedule = await getScheduleForYear(yearKey);
+        scheduleJsonText.value = JSON.stringify(currentSchedule, null, 2);
+        statusText.textContent = "Schedule loaded";
+      } catch (err) {
+        console.error("Error loading schedule:", err);
+        statusText.textContent = "Error loading schedule";
+      }
     }
 
     /* ------------------ FORMATTERS ------------------ */
@@ -215,9 +219,20 @@
 
     /* ------------------ BELL ------------------ */
     function ringBell() {
+      if (!schoolBell) return;
       schoolBell.currentTime = 0;
-      schoolBell.play();
-      setTimeout(() => schoolBell.pause(), 5000);
+      const playPromise = schoolBell.play();
+      if (playPromise && typeof playPromise.then === "function") {
+        playPromise
+          .then(() => {
+            setTimeout(() => {
+              schoolBell.pause();
+            }, 5000);
+          })
+          .catch(err => {
+            console.warn("Bell play blocked or failed:", err);
+          });
+      }
     }
 
     testBellButton.addEventListener("click", ringBell);
@@ -234,7 +249,7 @@
       const schoolOpen = 7*3600;
       const schoolClose = 17.5*3600;
 
-      /* BEFORE SCHOOL */
+      // BEFORE SCHOOL
       if (nowSeconds < schoolOpen) {
         timerDisplay.textContent = nowClock;
         statusText.textContent = "School has not opened yet";
@@ -244,7 +259,7 @@
         return;
       }
 
-      /* AFTER SCHOOL */
+      // AFTER SCHOOL
       if (nowSeconds > schoolClose) {
         timerDisplay.textContent = nowClock;
         statusText.textContent = "School day finished";
@@ -254,7 +269,7 @@
         return;
       }
 
-      /* FIND BREAKS */
+      // Find current & next break
       let currentBreak = null;
       let nextBreak = null;
 
@@ -271,7 +286,7 @@
         }
       }
 
-      /* BREAK END DETECTION */
+      // Break end detection for bell
       if (currentBreak) {
         lastBreakEnd = currentBreak.endSec;
       } else if (lastBreakEnd !== null && nowSeconds === lastBreakEnd) {
@@ -279,7 +294,7 @@
         lastBreakEnd = null;
       }
 
-      /* DURING BREAK */
+      // DURING BREAK
       if (currentBreak) {
         const left = currentBreak.endSec - nowSeconds;
         timerDisplay.textContent = formatCountdown(left);
@@ -290,11 +305,11 @@
         return;
       }
 
-      /* COUNTDOWN TO NEXT BREAK */
+      // COUNTDOWN TO NEXT BREAK
       if (nextBreak) {
         const until = nextBreak.startSec - nowSeconds;
 
-        /* If more than 90 minutes away → show clock instead */
+        // If more than 90 minutes away → show clock instead
         if (until > 90*60) {
           timerDisplay.textContent = nowClock;
           statusText.textContent = "Next break is later today";
@@ -304,7 +319,6 @@
           return;
         }
 
-        /* Show countdown */
         timerDisplay.textContent = formatCountdown(until);
         timerLabel.textContent = "Time until next break";
         statusText.textContent = "Next break coming up";
@@ -313,9 +327,10 @@
         return;
       }
 
-      /* NO MORE BREAKS TODAY */
+      // NO MORE BREAKS TODAY
       timerDisplay.textContent = nowClock;
       statusText.textContent = "No more breaks today";
+      statusDetail.textContent = "";
       timerLabel.textContent = "";
       document.body.className = "state-none";
     }
