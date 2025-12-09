@@ -1,0 +1,139 @@
+/* === RESET === */
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  font-family: system-ui, sans-serif;
+  overflow:hidden;
+  height:100vh;
+  width:100vw;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  background:#003;
+  color:white;
+}
+
+/* === STATES === */
+.state-class     { background:#0a3d91; }   /* Blue */
+.state-soon      { background:#ff7f00; }   /* Orange */
+.state-break     { background:#2ecc71; }   /* Green */
+.state-ending    { background:#ff3b30; }   /* Red */
+.state-lunch     { background:#f7d74a; }   /* Yellow */
+
+/* === SMALL CLOCK (top-right) === */
+#clockCorner {
+  position:fixed;
+  top:10px;
+  right:20px;
+  font-size:2rem;
+  font-weight:600;
+  opacity:0.9;
+}
+
+/* === MAIN VISUAL AREA === */
+#visualContainer {
+  text-align:center;
+  width:100%;
+  max-width:100vw;
+  padding:20px;
+}
+
+#iconArea {
+  font-size:20vw;
+  line-height:1;
+  margin-bottom:2vh;
+  animation-duration:1s;
+  animation-iteration-count: infinite;
+}
+
+/* ANIMATIONS */
+@keyframes bounce { 0%{transform:translateY(0);} 50%{transform:translateY(-25px);} 100%{transform:translateY(0);} }
+@keyframes shake { 0%{transform:rotate(0);} 25%{transform:rotate(-10deg);} 50%{transform:rotate(10deg);} 75%{transform:rotate(-10deg);} 100%{transform:rotate(0);} }
+@keyframes pulse { 0%{transform:scale(1);} 50%{transform:scale(1.15);} 100%{transform:scale(1);} }
+
+/* MESSAGE TEXT */
+#mainMessage {
+  font-size:6vw;
+  font-weight:800;
+  margin-bottom:1vh;
+}
+#subMessage {
+  font-size:4vw;
+  font-weight:500;
+  opacity:0.9;
+}
+
+/* === COMBINED MODE === */
+#combinedSection {
+  position:absolute;
+  bottom:5vh;
+  width:90vw;
+  left:5vw;
+  text-align:center;
+}
+
+.combinedText {
+  font-size:2vw;
+  margin-bottom:2vh;
+}
+
+.barRow {
+  margin:1vh 0;
+  width:100%;
+}
+.barLabel {
+  text-align:left;
+  font-size:1.5vw;
+  opacity:0.8;
+}
+.barOuter {
+  width:100%;
+  height:40px;
+  border-radius:8px;
+  background:rgba(255,255,255,0.2);
+  overflow:hidden;
+}
+.barFillA {
+  height:40px;
+  width:0%;
+  background:#4dd0e1;
+  transition:width .25s;
+}
+.barFillB {
+  height:40px;
+  width:0%;
+  background:#ffca28;
+  transition:width .25s;
+}
+
+/* === ICON BUTTON === */
+.iconBtn {
+  font-size:2rem;
+  padding:4px 8px;
+}
+
+/* === CONTROLS === */
+#controls {
+  position:fixed;
+  top:10px;
+  left:10px;
+  display:flex;
+  gap:10px;
+}
+
+/* === DEBUG PANEL === */
+#debugPanel {
+  display:none;
+  position:fixed;
+  bottom:10px;
+  left:10px;
+  width:30vw;
+  height:40vh;
+}
+#debugOutput {
+  width:100%;
+  height:100%;
+  background:rgba(0,0,0,0.5);
+  color:#0f0;
+  padding:10px;
+  font-family:monospace;
+}
