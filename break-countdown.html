@@ -1,476 +1,400 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Break Countdown – IESV</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="UTF-8">
+<title>Break Countdown – IESV</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
 
-    :root {
-      --bg-normal: linear-gradient(135deg, #071729, #0d2742);
-      --bg-upcoming: linear-gradient(135deg, #004d40, #00796b);
-      --bg-inbreak: linear-gradient(135deg, #1b5e20, #43a047);
-      --bg-none: linear-gradient(135deg, #311b92, #512da8);
+:root {
+  --bg-normal: linear-gradient(135deg,#071729,#0d2742);
+  --bg-upcoming: linear-gradient(135deg,#004d40,#00796b);
+  --bg-inbreak: linear-gradient(135deg,#1b5e20,#43a047);
+  --bg-none: linear-gradient(135deg,#311b92,#512da8);
 
-      --text-main: #ffffff;
-      --text-muted: #cfd8dc;
+  --text-main: #ffffff;
+  --text-muted: #cfd8dc;
 
-      --bar-bg: rgba(255,255,255,0.15);
-      --bar-fill: #4dd0e1;
-      --bar-fill-b: #ffca28;
-    }
+  --bar-bg: rgba(255,255,255,0.15);
+  --bar-a: #4dd0e1;
+  --bar-b: #ffca28;
+}
 
-    body {
-      font-family: system-ui, sans-serif;
-      height: 100vh;
-      display: flex;
-      flex-direction: column;
-      justify-content: space-between;
-      align-items: center;
-      background: var(--bg-normal);
-      color: var(--text-main);
-      transition: background 0.5s ease;
-      overflow: hidden;
-    }
+body {
+  font-family: system-ui, sans-serif;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--bg-normal);
+  color: var(--text-main);
+  transition: background 0.5s ease;
+  overflow: hidden;
+}
 
-    body.state-upcoming { background: var(--bg-upcoming); }
-    body.state-inbreak { background: var(--bg-inbreak); }
-    body.state-none { background: var(--bg-none); }
-    body.state-warning { animation: flash-bg 1s ease-in-out infinite alternate; }
+body.state-upcoming { background: var(--bg-upcoming); }
+body.state-inbreak { background: var(--bg-inbreak); }
+body.state-none { background: var(--bg-none); }
+body.state-warning { animation: flash-bg 1s ease-in-out infinite alternate; }
 
-    @keyframes flash-bg {
-      0% { filter: brightness(1); }
-      100% { filter: brightness(1.35); }
-    }
+@keyframes flash-bg {
+  0% { filter: brightness(1); }
+  100% { filter: brightness(1.35); }
+}
 
-    /* ------------------ TOP CONTROLS ------------------ */
-    .top-controls {
-      width: 100%;
-      max-width: 900px;
-      padding: 10px;
-      display: flex;
-      justify-content: flex-end;
-      align-items: center;
-      gap: 10px;
-    }
+/* ---------- TOP CONTROLS ---------- */
+.top-controls {
+  width: 100%;
+  max-width: 900px;
+  padding: 10px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
 
-    select, button {
-      background: rgba(0,0,0,0.5);
-      color: white;
-      border: 1px solid rgba(255,255,255,0.3);
-      padding: 8px 12px;
-      border-radius: 8px;
-      cursor: pointer;
-      font-size: 0.9rem;
-    }
+select, button {
+  background: rgba(0,0,0,0.5);
+  color: white;
+  border: 1px solid rgba(255,255,255,0.3);
+  padding: 8px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+button:hover { background: rgba(255,255,255,0.15); }
 
-    button:hover { background: rgba(255,255,255,0.15); }
+.icon-btn {
+  font-size: 1.35rem;
+  padding: 2px 8px;
+}
 
-    .icon-btn {
-      font-size: 1.35rem;
-      padding: 2px 8px;
-      line-height: 1;
-    }
+/* ---------- TIMER ---------- */
+.timer-container {
+  flex: 1;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+#timerDisplay {
+  font-weight: 700;
+  font-size: 18vw;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 0 30px rgba(0,0,0,0.6);
+}
 
-    /* ------------------ FULLSCREEN CLOCK / TIMER ------------------ */
-    .timer-container {
-      flex: 1;
-      width: 100%;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      text-align: center;
-      padding: 5px;
-    }
+/* ---------- COMBINED VIEW ---------- */
+.combined-section {
+  width: 100%;
+  max-width: 900px;
+  text-align: center;
+  margin-bottom: 10px;
+}
+.combined-text { font-size:1rem; margin-bottom:14px; }
 
-    #timerDisplay {
-      font-weight: 700;
-      font-variant-numeric: tabular-nums;
-      font-size: 18vw;
-      letter-spacing: 0.05em;
-      text-shadow: 0 0 30px rgba(0,0,0,0.6);
-      line-height: 1;
-    }
+.bar-row { margin: 12px 0; }
+.label { font-size: 0.9rem; color: var(--text-muted); margin-bottom: 5px; }
 
-    /* ------------------ YEAR 6 COMBINED: TEXT + PROGRESS BARS ------------------ */
-    .combined-section {
-      width: 100%;
-      max-width: 900px;
-      text-align: center;
-      margin-bottom: 10px;
-    }
+.bar {
+  width: 100%;
+  height: 40px;
+  background: var(--bar-bg);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.fillA { height:100%; background: var(--bar-a); width:0%; transition:0.3s; }
+.fillB { height:100%; background: var(--bar-b); width:0%; transition:0.3s; }
 
-    .combined-text {
-      font-size: 1rem;
-      margin-bottom: 14px;
-      color: var(--text-main);
-    }
-
-    .bar-row {
-      width: 100%;
-      margin: 10px 0;
-    }
-
-    .label {
-      font-size: 0.9rem;
-      color: var(--text-muted);
-      margin-bottom: 4px;
-    }
-
-    .bar {
-      width: 100%;
-      height: 40px;  /* B3 large bar */
-      background: var(--bar-bg);
-      border-radius: 10px;
-      overflow: hidden;
-      position: relative;
-    }
-
-    .fillA, .fillB {
-      height: 100%;
-      width: 0%;
-      transition: width 0.3s ease;
-    }
-
-    .fillA { background: var(--bar-fill); }
-    .fillB { background: var(--bar-fill-b); }
-
-    /* ------------------ DEBUG PANEL ------------------ */
-    #debugPanel {
-      display: none;
-      width: 95%;
-      max-width: 900px;
-      margin: 10px auto;
-    }
-
-    #debugPanel.visible { display: block; }
-
-    textarea {
-      width: 100%;
-      height: 200px;
-      background: rgba(0,0,0,0.6);
-      color: #e0f7fa;
-      border: 1px solid rgba(255,255,255,0.3);
-      border-radius: 10px;
-      padding: 10px;
-      font-size: 0.85rem;
-      font-family: monospace;
-    }
-  </style>
+/* ---------- DEBUG PANEL ---------- */
+#debugPanel {
+  display:none;
+  width:95%;
+  max-width:900px;
+  margin-bottom:10px;
+}
+#debugPanel.visible { display:block; }
+textarea {
+  width:100%;
+  height:200px;
+  background:rgba(0,0,0,0.6);
+  color:#e0f7fa;
+  border-radius:10px;
+  padding:10px;
+  font-family:monospace;
+}
+</style>
 </head>
 
 <body>
 
-  <!-- 🔔 SCHOOL BELL AUDIO -->
-  <audio id="schoolBell" src="school_bell.mp3" preload="auto"></audio>
+<!-- 🔔 SCHOOL BELL -->
+<audio id="bell" src="school_bell.mp3" preload="auto"></audio>
 
-  <!-- ------------------ TOP CONTROLS ------------------ -->
-  <div class="top-controls">
-    <select id="yearSelect">
-      <option value="6" selected>Year 6 (6A & 6B)</option>
-      <option value="6A">6A only</option>
-      <option value="6B">6B only</option>
-    </select>
+<!-- ---------- TOP CONTROLS ---------- -->
+<div class="top-controls">
+  <select id="yearSelect">
+    <option value="6" selected>Year 6 (6A & 6B)</option>
+    <option value="6A">6A only</option>
+    <option value="6B">6B only</option>
+  </select>
+  <button id="refreshButton">Reload</button>
+  <button id="debugToggle">Debug</button>
+  <button class="icon-btn" id="testBell">🔔</button>
+</div>
 
-    <button id="refreshButton">Reload</button>
-    <button id="debugToggle">Debug</button>
-    <button id="testBellButton" class="icon-btn" title="Test bell">🔔</button>
+<!-- ---------- TIMER / CLOCK ---------- -->
+<div class="timer-container">
+  <div id="timerDisplay">--:--</div>
+</div>
+
+<!-- ---------- COMBINED SECTION ---------- -->
+<div id="combinedSection" class="combined-section" style="display:none;">
+  <div id="combinedText" class="combined-text"></div>
+
+  <div class="bar-row">
+    <div class="label">6A</div>
+    <div class="bar"><div id="barA" class="fillA"></div></div>
   </div>
 
-  <!-- ------------------ FULLSCREEN CLOCK / COUNTDOWN ------------------ -->
-  <div class="timer-container">
-    <div id="timerDisplay">--:--</div>
+  <div class="bar-row">
+    <div class="label">6B</div>
+    <div class="bar"><div id="barB" class="fillB"></div></div>
   </div>
+</div>
 
-  <!-- ------------------ YEAR 6 COMBINED (Y6-3 & Y6-4) ------------------ -->
-  <div id="combinedSection" class="combined-section" style="display:none;">
-    <div id="combinedText" class="combined-text"></div>
+<!-- ---------- DEBUG PANEL ---------- -->
+<div id="debugPanel">
+  <textarea id="debugJson"></textarea>
+  <button id="downloadJson">Download JSON</button>
+</div>
 
-    <div class="bar-row">
-      <div class="label">6A</div>
-      <div class="bar"><div id="barA" class="fillA"></div></div>
-    </div>
+<script src="parser.js"></script>
+<script>
+const bell = document.getElementById("bell");
+const yearSelect = document.getElementById("yearSelect");
+const timerDisplay = document.getElementById("timerDisplay");
+const combinedSection = document.getElementById("combinedSection");
+const combinedText = document.getElementById("combinedText");
+const barA = document.getElementById("barA");
+const barB = document.getElementById("barB");
+const testBtn = document.getElementById("testBell");
+const debugToggle = document.getElementById("debugToggle");
+const debugPanel = document.getElementById("debugPanel");
+const debugJson = document.getElementById("debugJson");
 
-    <div class="bar-row">
-      <div class="label">6B</div>
-      <div class="bar"><div id="barB" class="fillB"></div></div>
-    </div>
-  </div>
+let schedule6A = null;
+let schedule6B = null;
 
-  <!-- ------------------ DEBUG PANEL ------------------ -->
-  <div id="debugPanel">
-    <textarea id="scheduleJson" readonly></textarea>
-    <button id="downloadJsonButton">Download JSON</button>
-  </div>
+const SCHOOL_OPEN = 7 * 3600;
+const SCHOOL_CLOSE = 17.5 * 3600;
 
-  <!-- --------------------------------------------------------------- -->
-  <!-- -------------------------- JAVASCRIPT -------------------------- -->
-  <!-- --------------------------------------------------------------- -->
 
-  <script src="parser.js"></script>
-  <script>
-    // ELEMENTS
-    const yearSelect = document.getElementById("yearSelect");
-    const refreshButton = document.getElementById("refreshButton");
-    const debugToggle = document.getElementById("debugToggle");
-    const debugPanel = document.getElementById("debugPanel");
-    const scheduleJsonText = document.getElementById("scheduleJson");
-    const downloadJsonButton = document.getElementById("downloadJsonButton");
-    const testBellButton = document.getElementById("testBellButton");
+// --------------------------------------------------
+// HELPERS
+// --------------------------------------------------
+function fmtClock(d){
+  return String(d.getHours()).padStart(2,"0") + ":" +
+         String(d.getMinutes()).padStart(2,"0");
+}
+function fmtCountdown(sec){
+  if(sec < 0) sec = 0;
+  const m = Math.floor(sec/60), s = sec%60;
+  return String(m).padStart(2,"0") + ":" + String(s).padStart(2,"0");
+}
 
-    const timerDisplay = document.getElementById("timerDisplay");
+// --------------------------------------------------
+// BELL
+// --------------------------------------------------
+function ringBell(type){
+  if(type === "lunch") return;   // 🚫 DO NOT ring after lunch
+  bell.currentTime = 0;
+  const p = bell.play();
+  if(p && p.then){
+    p.then(() => setTimeout(()=>bell.pause(),5000))
+      .catch(err => console.warn("Bell blocked:",err));
+  }
+}
+testBtn.onclick = ()=> ringBell("passing");
 
-    const combinedSection = document.getElementById("combinedSection");
-    const combinedText = document.getElementById("combinedText");
-    const barA = document.getElementById("barA");
-    const barB = document.getElementById("barB");
 
-    const bell = document.getElementById("schoolBell");
+// --------------------------------------------------
+// LOAD BREAKS
+// --------------------------------------------------
+async function loadSchedules(){
+  schedule6A = await getScheduleForYear("6A");
+  schedule6B = await getScheduleForYear("6B");
 
-    let schedule6A = null;
-    let schedule6B = null;
+  debugJson.value = JSON.stringify({schedule6A,schedule6B},null,2);
+}
 
-    let lastBreakEndA = null;
-    let lastBreakEndB = null;
 
-    // SCHOOL HOURS
-    const SCHOOL_OPEN = 7 * 3600;
-    const SCHOOL_CLOSE = 17.5 * 3600;
+// --------------------------------------------------
+// GET BREAK STATE
+// --------------------------------------------------
+function getBreakState(schedule, nowSec, day){
+  const arr = schedule?.breaksByDay?.[day] || [];
+  let active=null, next=null;
 
-    // ---------------------- HELPERS ----------------------
+  for(const b of arr){
+    const s=b.startMinutes*60, e=b.endMinutes*60;
+    if(nowSec>=s && nowSec<e) active={...b,startSec:s,endSec:e};
+    else if(nowSec<s && !next) next={...b,startSec:s,endSec:e};
+  }
+  return {active,next};
+}
 
-    function clockHHMM(date) {
-      return String(date.getHours()).padStart(2,"0") + ":" +
-             String(date.getMinutes()).padStart(2,"0");
-    }
 
-    function countdown(seconds) {
-      if (seconds < 0) seconds = 0;
-      const m = Math.floor(seconds / 60);
-      const s = seconds % 60;
-      return String(m).padStart(2,"0") + ":" + String(s).padStart(2,"0");
-    }
+// --------------------------------------------------
+// COMBINED PROGRESS
+// --------------------------------------------------
+function barFill(nextBreak, nowSec){
+  if(!nextBreak) return "0%";
+  const until = nextBreak.startSec - nowSec;
+  if(until <=0) return "100%";
+  const ratio = Math.max(0, Math.min(1, 1 - until/5400)); // 90 min window
+  return (ratio*100)+"%";
+}
 
-    function ringBell() {
-      bell.currentTime = 0;
-      const p = bell.play();
-      if (p && p.then) {
-        p.then(() => setTimeout(() => bell.pause(), 5000))
-         .catch(err => console.warn("Bell blocked:", err));
+
+// --------------------------------------------------
+// MAIN UPDATE LOOP
+// --------------------------------------------------
+let lastEndA=null, lastEndB=null;
+
+function updateDisplay(){
+  const now = new Date();
+  const nowSec = now.getHours()*3600 + now.getMinutes()*60 + now.getSeconds();
+  const day = ["Sun","Mon","Tue","Wed","Thur","Fri","Sat"][now.getDay()];
+
+  if(nowSec < SCHOOL_OPEN || nowSec > SCHOOL_CLOSE){
+    timerDisplay.textContent = fmtClock(now);
+    combinedSection.style.display="none";
+    document.body.className="state-none";
+    return;
+  }
+
+  const stA = getBreakState(schedule6A,nowSec,day);
+  const stB = getBreakState(schedule6B,nowSec,day);
+
+  const mode = yearSelect.value;
+
+  // ----------------- SINGLE CLASS MODES -----------------
+  const single = mode==="6A" ? stA : (mode==="6B" ? stB : null);
+  if(single){
+    combinedSection.style.display="none";
+
+    if(single.active){
+      const left = single.active.endSec-nowSec;
+      timerDisplay.textContent = fmtCountdown(left);
+      const type = single.active.type==="lunch" ? "Lunch ends in: " : "Break ends in: ";
+      document.body.className = left<=60 ? "state-inbreak state-warning" : "state-inbreak";
+
+      const endTime = single.active.endSec;
+      const last = mode==="6A"? lastEndA : lastEndB;
+      if(!last) { mode==="6A"? lastEndA=endTime : lastEndB=endTime; }
+      if(last===nowSec){
+        ringBell(single.active.type);
+        mode==="6A"? lastEndA=null : lastEndB=null;
       }
+      return;
     }
 
-    // ---------------------- LOADING ----------------------
-
-    async function loadSchedules() {
-      schedule6A = await getScheduleForYear("6A");
-      schedule6B = await getScheduleForYear("6B");
-
-      scheduleJsonText.value = JSON.stringify({ schedule6A, schedule6B }, null, 2);
-    }
-
-    // ---------------------- BREAK CHECK ----------------------
-
-    function getBreakState(schedule, nowSec, day) {
-      const breaks = schedule?.breaksByDay?.[day] || [];
-      let active = null, next = null;
-
-      for (const b of breaks) {
-        const start = b.startMinutes * 60;
-        const end = b.endMinutes * 60;
-        if (nowSec >= start && nowSec < end) {
-          active = { ...b, startSec: start, endSec: end };
-        } else if (nowSec < start && !next) {
-          next = { ...b, startSec: start, endSec: end };
-        }
-      }
-
-      return { active, next };
-    }
-
-    // ---------------------- PROGRESS BARS ----------------------
-
-    function computeBarFill(nextBreak, nowSec, totalRange = 60*90) {
-      if (!nextBreak) return 0;
-      const until = nextBreak.startSec - nowSec;
-      let ratio = 1 - (until / totalRange);
-      if (ratio < 0) ratio = 0;
-      if (ratio > 1) ratio = 1;
-      return ratio * 100;
-    }
-
-    // ---------------------- MAIN UPDATE ----------------------
-
-    function updateDisplay() {
-      const now = new Date();
-      const nowSec = now.getHours()*3600 + now.getMinutes()*60 + now.getSeconds();
-      const clock = clockHHMM(now);
-      const day = ["Sun","Mon","Tue","Wed","Thur","Fri","Sat"][now.getDay()];
-
-      // Outside school hours
-      if (nowSec < SCHOOL_OPEN) {
-        timerDisplay.textContent = clock;
-        combinedSection.style.display = "none";
-        document.body.className = "state-none";
+    if(single.next){
+      const until = single.next.startSec-nowSec;
+      if(until>5400){
+        timerDisplay.textContent=fmtClock(now);
+        document.body.className="state-none";
         return;
       }
-      if (nowSec > SCHOOL_CLOSE) {
-        timerDisplay.textContent = clock;
-        combinedSection.style.display = "none";
-        document.body.className = "state-none";
-        return;
-      }
-
-      const stateA = getBreakState(schedule6A, nowSec, day);
-      const stateB = getBreakState(schedule6B, nowSec, day);
-
-      const mode = yearSelect.value;
-
-      // ------------------ MODE 6A ONLY ------------------
-      if (mode === "6A") {
-        combinedSection.style.display = "none";
-
-        if (stateA.active) {
-          const left = stateA.active.endSec - nowSec;
-          timerDisplay.textContent = countdown(left);
-          document.body.className = left <= 60 ? "state-inbreak state-warning" : "state-inbreak";
-
-          if (!lastBreakEndA) lastBreakEndA = stateA.active.endSec;
-          if (lastBreakEndA === nowSec) { ringBell(); lastBreakEndA = null; }
-          return;
-        }
-
-        if (stateA.next) {
-          const until = stateA.next.startSec - nowSec;
-          if (until > 5400) { // > 90 min
-            timerDisplay.textContent = clock;
-            document.body.className = "state-none";
-            return;
-          }
-          timerDisplay.textContent = countdown(until);
-          document.body.className = until <= 60 ? "state-upcoming state-warning" : "state-upcoming";
-          return;
-        }
-
-        timerDisplay.textContent = clock;
-        document.body.className = "state-none";
-        return;
-      }
-
-      // ------------------ MODE 6B ONLY ------------------
-      if (mode === "6B") {
-        combinedSection.style.display = "none";
-
-        if (stateB.active) {
-          const left = stateB.active.endSec - nowSec;
-          timerDisplay.textContent = countdown(left);
-          document.body.className = left <= 60 ? "state-inbreak state-warning" : "state-inbreak";
-
-          if (!lastBreakEndB) lastBreakEndB = stateB.active.endSec;
-          if (lastBreakEndB === nowSec) { ringBell(); lastBreakEndB = null; }
-          return;
-        }
-
-        if (stateB.next) {
-          const until = stateB.next.startSec - nowSec;
-          if (until > 5400) {
-            timerDisplay.textContent = clock;
-            document.body.className = "state-none";
-            return;
-          }
-          timerDisplay.textContent = countdown(until);
-          document.body.className = until <= 60 ? "state-upcoming state-warning" : "state-upcoming";
-          return;
-        }
-
-        timerDisplay.textContent = clock;
-        document.body.className = "state-none";
-        return;
-      }
-
-      // ------------------ MODE YEAR 6 COMBINED ------------------
-      combinedSection.style.display = "block";
-
-      // DETERMINE ACTIVE BREAK PRIORITY
-      if (stateA.active || stateB.active) {
-        combinedSection.style.display = "none";
-
-        let chosen = stateA.active;
-        let label = "6A";
-
-        if (stateB.active && (!stateA.active || stateB.active.endSec < stateA.active.endSec)) {
-          chosen = stateB.active;
-          label = "6B";
-        }
-
-        const left = chosen.endSec - nowSec;
-        timerDisplay.textContent = countdown(left);
-        document.body.className = left <= 60 ? "state-inbreak state-warning" : "state-inbreak";
-
-        // ring bell if needed
-        const chosenEnd = chosen.endSec;
-        if (label === "6A") {
-          if (!lastBreakEndA) lastBreakEndA = chosenEnd;
-          if (lastBreakEndA === nowSec) { ringBell(); lastBreakEndA = null; }
-        } else {
-          if (!lastBreakEndB) lastBreakEndB = chosenEnd;
-          if (lastBreakEndB === nowSec) { ringBell(); lastBreakEndB = null; }
-        }
-        return;
-      }
-
-      // NO active break → show CLOCK + next breaks + bars
-      timerDisplay.textContent = clock;
-      document.body.className = "state-none";
-
-      const nextA = stateA.next;
-      const nextB = stateB.next;
-
-      const tA = nextA ? `${nextA.startLabel}` : "—";
-      const tB = nextB ? `${nextB.startLabel}` : "—";
-
-      combinedText.textContent =
-        `6A next break ${tA} • 6B next break ${tB}`;
-
-      // Fill bars
-      barA.style.width = computeBarFill(nextA, nowSec) + "%";
-      barB.style.width = computeBarFill(nextB, nowSec) + "%";
+      timerDisplay.textContent=fmtCountdown(until);
+      const kind = single.next.type==="lunch" ? "Lunch starts in: " : "Break starts in: ";
+      document.body.className = until<=60 ? "state-upcoming state-warning":"state-upcoming";
+      return;
     }
 
-    // ------------------ UI EVENTS ------------------
+    timerDisplay.textContent=fmtClock(now);
+    document.body.className="state-none";
+    return;
+  }
 
-    debugToggle.addEventListener("click", () => {
-      debugPanel.classList.toggle("visible");
-    });
+  // ----------------- YEAR 6 COMBINED -----------------
+  combinedSection.style.display="block";
 
-    testBellButton.addEventListener("click", ringBell);
+  // ACTIVE BREAK?
+  if(stA.active || stB.active){
+    combinedSection.style.display="none";
 
-    downloadJsonButton.addEventListener("click", () => {
-      const blob = new Blob([scheduleJsonText.value], { type: "application/json" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "schedule.json";
-      a.click();
-      URL.revokeObjectURL(url);
-    });
+    let chosen = stA.active;
+    let owner = "6A";
 
-    yearSelect.addEventListener("change", () => {
-      combinedSection.style.display = "none";
-      loadSchedules();
-    });
+    if(stB.active && (!stA.active || stB.active.endSec < stA.active.endSec)){
+      chosen = stB.active;
+      owner = "6B";
+    }
 
-    refreshButton.addEventListener("click", loadSchedules);
+    const left = chosen.endSec-nowSec;
+    timerDisplay.textContent = fmtCountdown(left);
+    const label = chosen.type==="lunch" ? "Lunch ends in: " : "Break ends in: ";
 
-    // ------------------ INIT ------------------
+    document.body.className = left<=60? "state-inbreak state-warning":"state-inbreak";
 
-    (async () => {
-      await loadSchedules();
-      updateDisplay();
-      setInterval(updateDisplay, 1000);
-    })();
-  </script>
+    const endT = chosen.endSec;
+    if(owner==="6A"){
+      if(!lastEndA) lastEndA=endT;
+      if(lastEndA===nowSec){ ringBell(chosen.type); lastEndA=null; }
+    } else {
+      if(!lastEndB) lastEndB=endT;
+      if(lastEndB===nowSec){ ringBell(chosen.type); lastEndB=null; }
+    }
+
+    return;
+  }
+
+  // SHOW CLOCK + UPCOMING FOR BOTH
+  timerDisplay.textContent = fmtClock(now);
+  document.body.className = "state-none";
+
+  const nA = stA.next;
+  const nB = stB.next;
+
+  const tA = nA ? `${nA.type==="lunch"?"Lunch":"Break"} at ${nA.startLabel}` : "—";
+  const tB = nB ? `${nB.type==="lunch"?"Lunch":"Break"} at ${nB.startLabel}` : "—";
+
+  combinedText.textContent = 
+    `6A next: ${tA}  •  6B next: ${tB}`;
+
+  barA.style.width = barFill(nA, nowSec);
+  barB.style.width = barFill(nB, nowSec);
+}
+
+
+// --------------------------------------------------
+// HOOKS
+// --------------------------------------------------
+debugToggle.onclick = () => debugPanel.classList.toggle("visible");
+document.getElementById("downloadJson").onclick = ()=>{
+  const blob = new Blob([debugJson.value],{type:"application/json"});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement("a");
+  a.href=url; a.download="schedule.json"; a.click();
+  URL.revokeObjectURL(url);
+};
+document.getElementById("refreshButton").onclick = loadSchedules;
+yearSelect.onchange = loadSchedules;
+
+
+// --------------------------------------------------
+// INIT
+// --------------------------------------------------
+(async()=>{
+  await loadSchedules();
+  updateDisplay();
+  setInterval(updateDisplay,1000);
+})();
+</script>
+
 </body>
 </html>
